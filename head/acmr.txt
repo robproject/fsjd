@@ -1,0 +1,5 @@
+A,head/added.json
+M,head/changed.json
+R,head/check_run.json
+R,head/renamednew.json
+M,head/custom/bankacct.json

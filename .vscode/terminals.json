@@ -1,0 +1,21 @@
+{
+  "autorun": true,
+  "terminals": [
+    {
+      "name": "Git",
+      "focus": true
+    },
+    {
+      "name": "Sub Git",
+      "commands": [
+        "cd frappe_schema_json_diff"
+      ]
+    },
+    {
+      "name": "Python3",
+      "commands": [
+        "python3"
+      ]
+    }
+  ]
+}

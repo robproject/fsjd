@@ -1,0 +1,21 @@
+{
+    "glossary": {
+        "title": "example glossaryy",
+		"GlossDiv": {
+            "title": "Si",
+			"GlossList": {
+                "GlossEntry": {
+                    "ID": "SiGML",
+					"SortAs": "ML",
+					"GlossTerm": "Standard Generalized Markup Language",
+					"Abbrev": "ISO 8879:1986",
+					"GlossDeaf": {
+                        "para": "A meta-markup language, used to create markup languages such as DocBook.",
+						"GlossSeeAlso": ["GML", "XL", "hjlm"]
+                    },
+					"GlossSee": "markup"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,3 @@
+[submodule "frappe_schema_json_diff"]
+	path = frappe_schema_json_diff
+	url = git@gist.github.com:74017707b676c3ce947528fb00dd46d0.git

@@ -1,0 +1,21 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Test FSJD",
+            "type": "python",
+            "request": "launch",
+            "program": "frappe_schema_json_diff/frappe_schema_json_diff.py",
+            "args": [
+                "base/mrd.txt",
+                "head/acmr.txt"
+            ],
+            "console": "integratedTerminal",
+            "python": "${userHome}/venv/bin/python",
+            "justMyCode": true
+        }
+    ]
+}
