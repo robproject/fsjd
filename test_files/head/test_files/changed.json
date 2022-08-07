@@ -1,20 +1,23 @@
 {
     "glossary": {
         "title": "example glossary",
-		"GlossDiv": {
+        "GlossDiv": {
             "title": "S",
-			"GlossList": {
+            "GlossList": {
                 "GlossEntry": {
                     "ID": "SGML",
-					"SortAs": "SGML",
-					"GlossTerm": "Standard Generalized Markup Language",
-					"GblossTerm": "Standard Generalized Markup Language",
-					"GhlossTerm": "Standard Generalized Markup Language",
-					"Abbrev": "ISO 8879:1986",
-					"GlossDef": {
-						"GlossSeeAlso": ["GML", "XML"]
+                    "SortAs": "SGML",
+                    "GlossTerm": "Standard Generalized Markup Language",
+                    "GblossTerm": "Standard Generalized Markup Language",
+                    "GhlossTerm": "Standard Generalized Markup ",
+                    "Abbrev": "ISO 8879:1986",
+                    "GlossDef": {
+                        "GlossSeeAlso": [
+                            "GML",
+                            "XML"
+                        ]
                     },
-					"GlossSee": "markup"
+                    "GlossSee": "markup"
                 }
             }
         }
