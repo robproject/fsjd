@@ -1,5 +1,0 @@
-M,changed.json
-R,check_runn.json,check_run.json
-R,renamedold.json,renamednew.json
-D,deleted.json
-M,custom/bankacct.json

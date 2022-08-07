@@ -11,11 +11,14 @@
             "program": "frappe_schema_json_diff/frappe_schema_json_diff.py",
             "args": [
                 "base/mrd.txt",
-                "head/acmr.txt"
+                "head/acmr.txt",
+                "1"
             ],
             "console": "integratedTerminal",
             "python": "${userHome}/venv/bin/python",
-            "justMyCode": true
+            "justMyCode": true,
+            "preLaunchTask": "Copy Head",
+            "postDebugTask": "Clean up"
         }
     ]
 }

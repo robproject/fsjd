@@ -1,0 +1,5 @@
+M,test_files/changed.json
+R,test_files/check_runn.json,test_files/check_run.json
+R,test_files/renamedold.json,test_files/renamednew.json
+D,test_files/deleted.json
+M,test_files/custom/bankacct.json
