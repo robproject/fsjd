@@ -8,12 +8,11 @@
                     "ID": "SGML",
                     "SortAs": "SGML",
                     "GlossTerm": "Standard Generalized Markup Language",
-                    "Abbrev": "ISO 1879:1989",
+                    "Abbrev": "ISO 8879:1986",
                     "GlossDef": {
                         "GlossSeeAlso": [
                             "GML",
-                            "XML",
-                            "JSON"
+                            "XML"
                         ]
                     },
                     "GlossSee": "markup"
