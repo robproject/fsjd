@@ -1,2 +1,0 @@
-rich
-json_source_map

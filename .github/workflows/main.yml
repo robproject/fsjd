@@ -61,9 +61,13 @@ jobs:
             echo "D,${file}" >> base/mrd.txt
           done
 
-      - name: Diff JSON
+      - name: Setup Requirements
         run: |
           pip install rich
           pip install json_source_map
+
+      - name: Diff - Both Versions
           git clone https://gist.github.com/74017707b676c3ce947528fb00dd46d0.git fsjd
           python3 fsjd/frappe_schema_json_diff.py base/mrd.txt head/acmr.txt 1
+          python3 fsjd/frappe_schema_json_diff.py base/mrd.txt head/acmr.txt 0
+
