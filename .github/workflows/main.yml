@@ -65,6 +65,5 @@ jobs:
         run: |
           pip install rich
           pip install json_source_map
-          git clone https://gist.github.com/74017707b676c3ce947528fb00dd46d0.git frappe_json_diff
-          python3 frappe_json_diff/frappe_json_diff.py base/mrd.txt head/acmr.txt 1
-
+          git clone https://gist.github.com/74017707b676c3ce947528fb00dd46d0.git fsjd
+          python3 fsjd/frappe_schema_json_diff.py base/mrd.txt head/acmr.txt 1

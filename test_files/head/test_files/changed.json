@@ -8,9 +8,7 @@
                     "ID": "SGML",
                     "SortAs": "SGML",
                     "GlossTerm": "Standard Generalized Markup Language",
-                    "GblossTerm": "Standard Generalized Markup Language",
-                    "GhlossTerm": "Standard Generalized Markup ",
-                    "Abbrev": "ISO 8879:1986",
+                    "Abbrev": "ISO 8879:1989",
                     "GlossDef": {
                         "GlossSeeAlso": [
                             "GML",
