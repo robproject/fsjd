@@ -1,4 +1,4 @@
-name: Validate Diff Release
+name: Diff Sample
 on:
   push:
     branches: [ main ]
@@ -61,15 +61,13 @@ jobs:
             echo "D,${file}" >> base/mrd.txt
           done
 
-      - name: Setup requirements and script
+      - name: setup requirements and script
         run: |
           pip install rich
           pip install json_source_map
           git clone https://gist.github.com/74017707b676c3ce947528fb00dd46d0.git fsjd
 
-      - name: Diff - Table
+      - name: diff table
         run: python3 fsjd/frappe_schema_json_diff.py base/mrd.txt head/acmr.txt 1
 
-      - name: Diff - Tree
-        run: python3 fsjd/frappe_schema_json_diff.py base/mrd.txt head/acmr.txt 0
 
