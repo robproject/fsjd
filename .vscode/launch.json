@@ -8,7 +8,7 @@
             "name": "Test FSJD",
             "type": "python",
             "request": "launch",
-            "program": "frappe_schema_json_diff/frappe_schema_json_diff.py",
+            "program": "fsjd/frappe_schema_json_diff.py",
             "args": [
                 "base/mrd.txt",
                 "head/acmr.txt",

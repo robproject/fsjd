@@ -8,7 +8,7 @@
     {
       "name": "Sub Git",
       "commands": [
-        "cd frappe_schema_json_diff"
+        "cd fsjd"
       ]
     },
     {
