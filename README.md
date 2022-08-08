@@ -8,12 +8,12 @@ Call the script and pass three arguments:
 3. Boolean for printing tables (1) or trees (0).
 
 ### Github Actions
-Workflow main.yml performs the following steps:
+Workflow `main.yml` performs the following steps:
 1. Checkout action gets last two commits. 
 2. Changed-files action gets all changed json.
-3. Changed files are copied to a directory "head/" while their new paths and git status are listed in a file "acmr.txt".
+3. Changed files are copied to a directory `head/` while their new paths and git status are listed in a file `acmr.txt`.
 4. Git checks out the base commit.
-5. Git status and chagned file paths of base files are listed in file "base/mrd.txt".
+5. Git status and chagned file paths of base files are listed in file `base/mrd.txt`.
 6. Running the script at this point allows it to access head and base versions of changed files simultaneously.
 
 ### Local Testing
