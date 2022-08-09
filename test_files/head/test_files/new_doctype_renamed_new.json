@@ -1,0 +1,78 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2022-08-09 16:52:13.543874",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "new_docfield_1",
+  "new_docfield_2",
+  "new_docfield_3",
+  "new_docfield_4",
+  "new_docfield_5",
+  "new_docfield_6",
+  "new_docfield_7"
+ ],
+ "fields": [
+  {
+   "fieldname": "new_docfield_1",
+   "fieldtype": "Data",
+   "label": "New Docfield 1"
+  },
+  {
+   "fieldname": "new_docfield_2",
+   "fieldtype": "Int",
+   "label": "New Docfield 2"
+  },
+  {
+   "fieldname": "new_docfield_3",
+   "fieldtype": "Link",
+   "label": "New Docfield 3",
+   "options": "Contact"
+  },
+  {
+   "fieldname": "new_docfield_4",
+   "fieldtype": "Duration",
+   "label": "New Docfield 4"
+  },
+  {
+   "fieldname": "new_docfield_5",
+   "fieldtype": "Data",
+   "label": "New Docfield 5"
+  },
+  {
+   "fieldname": "new_docfield_6",
+   "fieldtype": "Datetime",
+   "label": "New Docfield 6"
+  },
+  {
+   "fieldname": "new_docfield_7",
+   "fieldtype": "Data",
+   "label": "New Docfield 7"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2022-08-09 17:06:43.174784",
+ "modified_by": "Administrator",
+ "module": "New Module",
+ "name": "New Doctype",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

@@ -1,5 +1,6 @@
-M,test_files/changed.json
-R,test_files/check_runn.json,test_files/check_run.json
-R,test_files/renamedold.json,test_files/renamednew.json
-D,test_files/deleted.json
+M,test_files/new_doctype_modified.json
+R,test_files/new_doctype_renamed_old.json,test_files/new_doctype_renamed_new.json
+R,test_files/new_doctype_renamodified_old.json,test_files/new_doctype_renamodified_new.json
+D,test_files/new_doctype_deleted.json
 M,test_files/custom/bankacct.json
+M,test_files/custom/contact.json

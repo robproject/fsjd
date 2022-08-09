@@ -1,5 +1,6 @@
-A,head/test_files/added.json
-M,head/test_files/changed.json
-R,head/test_files/check_run.json
-R,head/test_files/renamednew.json
+A,head/test_files/new_doctype_added.json
+M,head/test_files/new_doctype_modified.json
+R,head/test_files/new_doctype_renamed_new.json
+R,head/test_files/new_doctype_renamodified_new.json
 M,head/test_files/custom/bankacct.json
+M,head/test_files/custom/contact.json
