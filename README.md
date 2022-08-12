@@ -22,10 +22,13 @@ Copy `main.yaml` along with the `.github/workflows` parent directories into the 
 | ------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | **json-source-map** | Fetching line numbers for diffed data | [PyPI](https://pypi.org/project/json-source-map/) [GitHub](https://github.com/open-alchemy/json-source-map/wiki) |
 | **Rich**            | Python output formatting              | [PyPI](https://pypi.org/project/rich/)             [GitHub](https://github.com/Textualize/rich)                  |
-### Output
-Runner terminals will show all JSON file names and git statuses, and any diff contents for those which are renamed or modified. If any schema changes (changed JSON) are present, the workflow will fail.
-[Example](https://github.com/robproject/fsjd/runs/7710257113?check_suite_focus=true#step:8:11)
-![](assets/11.png)
+## Output
+Runner terminals will show all JSON file names and git statuses, and any diff contents for those which are renamed or modified. If any schema changes (changed JSON) are present, the workflow will fail.  
+### CI Terminal
+[example](https://github.com/robproject/fsjd/runs/7710257113?check_suite_focus=true#step:8:11)  
+### Table
+![asdf](assets/11.png)
+### Tree
 ![](assets/0.png)
 ### Github Actions
 Workflow `main.yaml` performs the following steps:
