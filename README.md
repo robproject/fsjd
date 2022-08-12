@@ -16,12 +16,6 @@ Press f5
 Copy `main.yaml` along with the `.github/workflows` parent directories into the root folder of a custom app. Change the branch on lines 4 and 6 if applicable. Keep the `1` on line 71 to print table diffs or change it to `0` for trees.
 
 
-## Design
-### Dependencies
-| Name                | Purpose                               | Links                                                                                                            |
-| ------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **json-source-map** | Fetching line numbers for diffed data | [PyPI](https://pypi.org/project/json-source-map/) [GitHub](https://github.com/open-alchemy/json-source-map/wiki) |
-| **Rich**            | Python output formatting              | [PyPI](https://pypi.org/project/rich/)             [GitHub](https://github.com/Textualize/rich)                  |
 ## Output
 Runner terminals will show all JSON file names and git statuses, and any diff contents for those which are renamed or modified. If any schema changes (changed JSON) are present, the workflow will fail.  
 ### CI Terminal
@@ -30,6 +24,12 @@ Runner terminals will show all JSON file names and git statuses, and any diff co
 ![asdf](assets/11.png)
 ### Tree
 ![](assets/0.png)
+## Design
+### Dependencies
+| Name                | Purpose                               | Links                                                                                                            |
+| ------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **json-source-map** | Fetching line numbers for diffed data | [PyPI](https://pypi.org/project/json-source-map/) [GitHub](https://github.com/open-alchemy/json-source-map/wiki) |
+| **Rich**            | Python output formatting              | [PyPI](https://pypi.org/project/rich/)             [GitHub](https://github.com/Textualize/rich)                  |
 ### Github Actions
 Workflow `main.yaml` performs the following steps:
 1. Checkout action gets the two latest commits. 
