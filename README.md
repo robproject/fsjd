@@ -1,6 +1,5 @@
 # Frappe Schema JSON Diff 
 
-
 ## Usage
 ### Local Testing
 Call the script and pass three arguments:
@@ -12,15 +11,8 @@ Sample Frappe JSON files and a VSCode launch configuration are included to quick
 `git clone --recurse-submodules https://github.com/robproject/fsjd.git`  
 `cd fsjd && pip install -r requirements.txt && code .`  
 Press f5
-### Github Actions
-Workflow `main.yaml` performs the following steps:
-1. Checkout action gets the two latest commits. 
-2. Changed-files action gets all changed json.
-3. Changed files are copied to a directory `head/` while their new paths and git status are listed in a file `acmr.txt`.
-4. Git checks out the base commit.
-5. Git status and changed file paths of base files are listed in file `base/mrd.txt`.
-6. Script can be called since both versions of files are accessible.
-### Implemenataion
+
+### CI Implementation
 Copy `main.yaml` along with the `.github/workflows` parent directories into the root folder of a custom app. Change the branch on lines 4 and 6 if applicable. Keep the `1` on line 71 to print table diffs or change it to `0` for trees.
 
 
@@ -33,5 +25,15 @@ Copy `main.yaml` along with the `.github/workflows` parent directories into the 
 ### Output
 Runner terminals will show all JSON file names and git statuses, and any diff contents for those which are renamed or modified. If any schema changes (changed JSON) are present, the workflow will fail.
 [Example](https://github.com/robproject/fsjd/runs/7710257113?check_suite_focus=true#step:8:11)
+![](assets/11.png)
+![](assets/0.png)
+### Github Actions
+Workflow `main.yaml` performs the following steps:
+1. Checkout action gets the two latest commits. 
+2. Changed-files action gets all changed json.
+3. Changed files are copied to a directory `head/` while their new paths and git status are listed in a file `acmr.txt`.
+4. Git checks out the base commit.
+5. Git status and changed file paths of base files are listed in file `base/mrd.txt`.
+6. Script can be called since both versions of files are accessible.
 ### Function
 A specific situation this tool is designed to account for is the deletion or reordering of elements in a list of dictionaries. If docfields (dictionaries) are added, deleted, or have their order changed, tools like DeepDiff will compare elements of the same index. FSJD will compare members of dictionary lists with matching common-key values. For example, docfields share the common-key 'field_name', so if two lists to be diffed contain dictionaries with this common-key, and their values match, those two dictionaries will be compared regardless of index. The tradeoff to this approach is that renaming a docfield (changing only the value of a common-key) will show a deleted and added docfield instead of a renamed value.
