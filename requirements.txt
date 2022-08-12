@@ -1,0 +1,2 @@
+json-source-map==1.0.4
+rich==12.5.1

@@ -15,7 +15,6 @@
                 "1"
             ],
             "console": "integratedTerminal",
-            "python": "${userHome}/venv/bin/python",
             "justMyCode": true,
             "preLaunchTask": "Copy Head",
             "postDebugTask": "Clean up"
