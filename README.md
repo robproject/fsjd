@@ -25,7 +25,7 @@ Copy `main.yaml` along with the `.github/workflows` parent directories into the 
 ## Output
 Runner terminals will show all JSON file names and git statuses, and any diff contents for those which are renamed or modified. If any schema changes (changed JSON) are present, the workflow will fail.  
 ### CI Terminal
-[example](https://github.com/robproject/fsjd/runs/7710257113?check_suite_focus=true#step:8:11)  
+[example](https://github.com/robproject/fsjd/runs/7799952536?check_suite_focus=true#step:8:5)  
 ### Table
 ![asdf](assets/11.png)
 ### Tree
