@@ -17,7 +17,6 @@
     "fields": [
         {
             "fieldname": "new_docfield_1",
-            "fieldtype": "Data",
             "label": "New Docfield 1"
         },
         {
@@ -33,7 +32,6 @@
         },
         {
             "fieldname": "new_docfield_4",
-            "fieldtype": "Duration",
             "label": "New Docfield 4"
         },
         {
