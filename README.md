@@ -14,7 +14,7 @@ Sample Frappe JSON files and a VSCode launch configuration are included to quick
 Press f5
 
 ### CI Implementation
-Copy `main.yaml` along with the `.github/workflows` parent directories into the root folder of a custom app. Change the branch on lines 4 and 6 if applicable. Keep the `1` on line 71 to print table diffs or change it to `0` for trees.
+Copy the file `.github/workflows/main.yaml` along with its parent directories into the root folder of a custom app. Change the branch on lines 4 and 6 if applicable. Keep the `1` on line 71 to print table diffs or change it to `0` for trees.
 
 
 ## Output
