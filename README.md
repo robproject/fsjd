@@ -2,12 +2,13 @@
 
 ## Usage
 ### Local Testing
+
 Call the script and pass three arguments:
 1. Path to text file containing git statuses and paths to (copied) files from head commit.
 2. Path to text file containing git statuses and paths to files from base commit.
 3. Boolean for printing tables (1) or trees (0).
 
-Sample Frappe JSON files and a VSCode launch configuration are included to quickly get started:  
+Sample Frappe JSON files and a VSCode launch configuration are included to quickly get started (on WSL):  
 `git clone --recurse-submodules https://github.com/robproject/fsjd.git`  
 `cd fsjd && pip install -r requirements.txt && code .`  
 Press f5
