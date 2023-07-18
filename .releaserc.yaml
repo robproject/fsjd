@@ -1,7 +1,7 @@
 branches: [main]
-repositoryUrl: 'https://github.com/robproject/fsjd.git'
+repositoryUrl: "https://github.com/robproject/fsjd.git"
 
 plugins:
-- '@semantic-release/commit-analyzer'
-- '@semantic-release/release-notes-generator'
-- '@semantic-release/github'
+  - "@semantic-release/commit-analyzer"
+  - "@semantic-release/release-notes-generator"
+  - "@semantic-release/github"

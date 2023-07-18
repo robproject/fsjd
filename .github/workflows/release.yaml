@@ -1,10 +1,9 @@
-
 name: Release
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

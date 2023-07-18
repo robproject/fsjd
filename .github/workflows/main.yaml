@@ -1,10 +1,9 @@
 name: Diff Sample
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-
+    branches: [main]
 
 jobs:
   Diff:
@@ -69,5 +68,3 @@ jobs:
 
       - name: Diff table
         run: python3 fsjd/frappe_schema_json_diff.py base/mrd.txt head/acmr.txt 1
-
-
