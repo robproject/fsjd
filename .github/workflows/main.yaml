@@ -39,7 +39,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const output = fs.readFileSync('output.html', 'utf8');
+            const output = fs.readFileSync('diff_output.html', 'utf8');
             const issue_number = context.issue.number;
             github.rest.issues.createComment({
               owner: context.repo.owner,
