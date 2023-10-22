@@ -17,7 +17,7 @@ class FrappeDiff:
     old_hex: str
     new_path: str
     new_hex: str
-    print_table: str
+    print_table: int
 
     def prep(self) -> None:
         self.base_obj, self.base_ln = self.get_file(self.old_path)
@@ -44,7 +44,7 @@ class FrappeDiff:
             title_style="bold",
             expand=True,
         )
-        table.add_column("L#, Path", ratio=1)
+        table.add_column("+-, L#, Path", ratio=1)
         table.add_column("Key or Element", ratio=1)
         table.add_column("Value", ratio=1)
         self.table = table
@@ -103,39 +103,39 @@ class FrappeDiff:
     def red_kvp(self, key: str, value: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
+                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
                 key,
                 value,
                 style="red",
             )
         else:
             tree.add(
-                f"[red][bold]{self.base_ln.key(self.conc_b_path)}[/bold] {key} : {value}[/red]"
+                f"[red][bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {key} : {value}[/red]"
             )
 
     def grn_kvp(self, key: str, value: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
+                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
                 key,
                 value,
                 style="green",
             )
         else:
             tree.add(
-                f"[green][bold]{self.base_ln.key(self.conc_h_path)}[/bold] {key} : {value}[/green]"
+                f"[green][bold]+ {self.base_ln.key(self.conc_h_path)}[/bold] {key} : {value}[/green]"
             )
 
     def mod_kvp(self, key: str, b_val: str, h_val: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
+                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
                 f"[default]{key}[/default]",
                 b_val,
                 style="red",
             )
             self.table.add_row(
-                f"[bold]{self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
+                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
                 f"[default]{key}[/default]",
                 h_val,
                 style="green",
@@ -243,23 +243,23 @@ class FrappeDiff:
     def red_elem(self, elem: str, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.base_ln.val(path)}[/bold] {path}", elem, "", style="red"
+                f"[bold]- {self.base_ln.val(path)}[/bold] {path}", elem, "", style="red"
             )
         else:
-            tree.add(f"[red][bold]{self.base_ln.val(path)}[/bold] {elem}[/red]")
+            tree.add(f"[red][bold]- {self.base_ln.val(path)}[/bold] {elem}[/red]")
 
     def grn_elem(self, elem: str, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.val(path)}[/bold] {path}", elem, "", style="green"
+                f"[bold]+ {self.head_ln.val(path)}[/bold] {path}", elem, "", style="green"
             )
         else:
-            tree.add(f"[green][bold]{self.head_ln.val(path)}[/bold] {elem}[/green]")
+            tree.add(f"[green][bold]+ {self.head_ln.val(path)}[/bold] {elem}[/green]")
 
     def red_dict(self, bdict: dict, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.val(path)}[/bold] {path}",
+                f"[bold]- {self.head_ln.val(path)}[/bold] {path}",
                 bdict[self.common_key],
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="red",
@@ -273,15 +273,15 @@ class FrappeDiff:
                 )
         else:
             dict_tree = tree.add(
-                f"[red][bold]{self.base_ln.val(path)}[/bold] {bdict[self.common_key]}[/red]"
+                f"[red][bold]- {self.base_ln.val(path)}[/bold] {bdict[self.common_key]}[/red]"
             )
             for k, v in bdict.items():
-                dict_tree.add(f"[red]{k} : {v}[/red]")
+                dict_tree.add(f"[red]- {k} : {v}[/red]")
 
     def grn_dict(self, hdict: dict, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.val(path)}[/bold] {path}",
+                f"[bold]+ {self.head_ln.val(path)}[/bold] {path}",
                 hdict[self.common_key],
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="green",
@@ -295,10 +295,10 @@ class FrappeDiff:
                 )
         else:
             dict_tree = tree.add(
-                f"[green][bold]{self.head_ln.val(path)}[/bold] {hdict[self.common_key]}[/green]"
+                f"[green][bold]+ {self.head_ln.val(path)}[/bold] {hdict[self.common_key]}[/green]"
             )
             for k, v in hdict.items():
-                dict_tree.add(f"[green]{k} : {v}[/green]")
+                dict_tree.add(f"[green]+ {k} : {v}[/green]")
 
 
 @dataclass
@@ -346,14 +346,13 @@ def print_custom(path: str) -> None:
 if __name__ == "__main__":
 
     # https://github.com/azrafe7/test_python_rich_on_gh_pages/blob/0015be3b6b1925c4d4c9acbaed319666ff7cec89/main.py
-    print('running in runner')
-    console = Console(force_terminal=True, width=180, log_time=False, log_path=False)
+    console = Console(force_terminal=True, width=150, log_time=False, log_path=False)
     
     old_path = sys.argv[2]
     old_hex = sys.argv[3]
     new_path = sys.argv[5]
     new_hex = sys.argv[6]
-    table_mode = os.getenv("TABLE_MODE")
+    table_mode = int(os.getenv('TABLE_MODE'))
 
     try:
         if sys.argv[2].split('.')[-1] == 'json' or sys.argv[5].split('.')[-1] == 'json':

@@ -17,18 +17,15 @@
  "fields": [
   {
    "fieldname": "new_docfield_1",
-   "fieldtype": "Data",
    "label": "New Docfield 1"
   },
   {
    "fieldname": "new_docfield_2",
-   "fieldtype": "Int",
    "label": "New Docfield 2"
   },
   {
    "fieldname": "new_docfield_3",
    "fieldtype": "Link",
-   "label": "New Docfield 3",
    "options": "Contact"
   },
   {
