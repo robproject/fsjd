@@ -21,7 +21,6 @@
   },
   {
    "fieldname": "new_docfield_2",
-   "fieldtype": "Int",
    "label": "New Docfield 2"
   },
   {
