@@ -17,7 +17,6 @@
  "fields": [
   {
    "fieldname": "new_docfield_1",
-   "fieldtype": "Data",
    "label": "New Docfield 1"
   },
   {
