@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 2
           ref: ${{ github.ref }}
 
       - name: Setup requirements
@@ -31,7 +32,7 @@ jobs:
       - name: Diff on pull
         if: github.event_name == 'pull_request'
         run: |
-          git fetch origin %{{ github.base_ref }}:${{ github.base_ref }}
+          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
           git --no-pager diff HEAD~1 HEAD
           git --no-pager diff ${{ github.base_ref }}...HEAD
 
