@@ -349,7 +349,6 @@ if __name__ == "__main__":
     print('running in runner')
     console = Console(force_terminal=True, width=180, log_time=False, log_path=False)
     
-    print(sys.argv)
     old_path = sys.argv[2]
     old_hex = sys.argv[3]
     new_path = sys.argv[5]
