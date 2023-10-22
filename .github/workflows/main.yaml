@@ -21,8 +21,10 @@ jobs:
           # wget https://raw.githubusercontent.com/robproject/fsjd/main/frappe_schema_json_diff.py
           export TABLE_MODE=1
           export GIT_EXTERNAL_DIFF=./frappe_schema_json_diff.py
-          ls -a
+
           chmod +x ./frappe_schema_json_diff.py
+          echo ${{ github.base_ref }}
+          echo ${{ github.ref }}
           git --no-pager diff ${{ github.base_ref }}...HEAD
 
 
