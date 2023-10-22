@@ -346,8 +346,7 @@ def print_custom(path: str) -> None:
 if __name__ == "__main__":
 
     # https://github.com/azrafe7/test_python_rich_on_gh_pages/blob/0015be3b6b1925c4d4c9acbaed319666ff7cec89/main.py
-    print('running in runner')
-    console = Console(force_terminal=True, width=180, log_time=False, log_path=False)
+    console = Console(force_terminal=True, width=150, log_time=False, log_path=False)
     
     old_path = sys.argv[2]
     old_hex = sys.argv[3]
