@@ -2,11 +2,11 @@
 
 ## Usage
 ### Local Testing
-1. Change or delete any json files located in /test_files
+1. Change or delete any json files located in `/test_files`
 2. `bash ./run.sh`
 
 ### CI Implementation
-Copy the file `.github/workflows/main.yaml` along with its parent directories into the root folder of a custom app. Change the branch on lines 4 and 6 if applicable. Keep the `1` on line 23 to print table diffs or change it to `0` for trees.
+Copy the file `.github/workflows/main.yaml` along with its parent directories into the root folder of a custom app. Change the branch on lines 4 and 6 if applicable. Keep the `1` on line 24 to print table diffs or change it to `0` for trees.
 
 ## Output
 Runner terminals will show JSON file names and diff content for any modified files, and names of deleted files. If any schema changes (changed JSON) are present, the workflow will fail.  
