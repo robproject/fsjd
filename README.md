@@ -1,6 +1,8 @@
 # Frappe Schema JSON Diff 
 
 ## Usage
+When building and customizing Frappe Doctypes (schema), tracking changes can be challenging. Relying on the current state of the UI doesn't show past changes, and git's diff does not reflect the functional change, only the line-by-line diff of the json file. This script and workflow displays a meaningful diff of the newest changes on pull requests and pushes in a runner terminal, and in the case of PRs, comments on the request.
+
 ### Local Testing
 1. Change or delete any json files located in `/test_files`
 2. `bash ./run.sh`
