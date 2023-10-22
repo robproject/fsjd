@@ -36,7 +36,7 @@ jobs:
           sed -i -n '/<pre class="ansi2html-content">/,/<\/pre>/p' diff_output.html
       
       - name: Post comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && $(grep -qE "\S" diff_output.html)
         uses: actions/github-script@v6
         with:
           script: |
