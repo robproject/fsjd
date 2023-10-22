@@ -33,7 +33,8 @@ jobs:
         run: |
           pip install ansi2html
           cat diff_output.txt | ansi2html > diff_output.html
-          sed -n '/<body>/,/<\/body>/p' diff_output.html | sed '1d;$d' > body_content.html
+          sed -i -n '/<pre class="ansi2html-content">/,/<\/pre>/p' diff_output.html
+          sed -i '1d;$d' diff_output.html
       
       - name: Post comment
         if: github.event_name == 'pull_request'
@@ -41,7 +42,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const output = fs.readFileSync('body_content.html', 'utf8');
+            const output = fs.readFileSync('diff_output.html', 'utf8');
             const issue_number = context.issue.number;
             github.rest.issues.createComment({
               owner: context.repo.owner,
