@@ -20,21 +20,13 @@ jobs:
           pip install rich
           pip install json_source_map
           # wget https://raw.githubusercontent.com/robproject/fsjd/main/frappe_schema_json_diff.py
-          chmod +x ./frappe_schema_json_diff.py
           echo "GIT_EXTERNAL_DIFF=./frappe_schema_json_diff.py" >> $GITHUB_ENV
           echo "TABLE_MODE=1" >> $GITHUB_ENV
       
-      - name: Diff on push
-        if: github.event_name == 'push'
+      - name: Diff
         run: |
           git --no-pager diff HEAD~1 HEAD
 
-      - name: Diff on pull
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
-          git --no-pager diff HEAD~1 HEAD
-          git --no-pager diff ${{ github.base_ref }}...HEAD
 
 
 
