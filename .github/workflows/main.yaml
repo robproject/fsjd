@@ -32,7 +32,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           pip install ansi2html
-          cat diff_output | ansi2html > diff_output.html
+          cat diff_output.txt | ansi2html > diff_output.html
           sudo apt install -y pup
           pup 'body' < diff_output.html > body_content.html
       
