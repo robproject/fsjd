@@ -25,7 +25,29 @@ jobs:
       
       - name: Diff
         run: |
-          git --no-pager diff HEAD~1 HEAD
+          git --no-pager diff HEAD~1 HEAD > diff_output.txt
+
+      - name: Convert ansi to html
+        if: github.event_name == 'pull_request'
+        run: |
+          pip install ansi2html
+          cat diff_output | ansi2html > diff_output.html
+      
+      - name: Post comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('output.html', 'utf8');
+            const issue_number = context.issue.number;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: output,
+            });
+
 
 
 
