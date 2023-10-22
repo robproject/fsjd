@@ -35,8 +35,19 @@ jobs:
           cat diff_output.txt | ansi2html > diff_output.html
           sed -i -n '/<pre class="ansi2html-content">/,/<\/pre>/p' diff_output.html
       
+      - name: Check for content
+        if: github.event_name == 'pull_request'
+        id: check_file
+        run: |
+            content=$(tr -d "[:space:]" < diff_output.html)
+            if [[ -n "$content" ]]; then
+              echo "::set-output name=hasContent::true"
+            else
+              echo "::set-output name=hasContent::false"
+            fi
+      
       - name: Post comment
-        if: github.event_name == 'pull_request' && $(grep -qE "\S" diff_output.html)
+        if: github.event_name == 'pull_request' && steps.check_file.outputs.hasContent == 'true'
         uses: actions/github-script@v6
         with:
           script: |
