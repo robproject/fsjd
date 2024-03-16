@@ -219,8 +219,8 @@ class FrappeDiff:
             "custom_perms": "role",
             "permissions": "role",
         }
-        if (common_key := common_keys.get(name)) is not None:
-            return common_key
+        if (key := common_keys.get(name)) is not None:
+            return key
         else:
             # Find common keys then return the first one with all unique values.
             # https://stackoverflow.com/a/13985856/14410691
