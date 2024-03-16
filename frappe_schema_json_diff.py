@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-import sys
+from dataclasses import dataclass
 import os
 import json
 import re
-from dataclasses import dataclass
+from typing import Optional
+import sys
 
 from json_source_map import calculate
-
 from rich.console import Console
-from rich.tree import Tree
 from rich.table import Table
+from rich.tree import Tree
+
 
 @dataclass
 class FrappeDiff:
     old_path: str
-    old_hex: str
     new_path: str
-    new_hex: str
-    print_table: str
+    print_table: int = 0
 
     def prep(self) -> None:
         self.base_obj, self.base_ln = self.get_file(self.old_path)
@@ -44,7 +43,7 @@ class FrappeDiff:
             title_style="bold",
             expand=True,
         )
-        table.add_column("L#, Path", ratio=1)
+        table.add_column("+-, L#, Path", ratio=1)
         table.add_column("Key or Element", ratio=1)
         table.add_column("Value", ratio=1)
         self.table = table
@@ -103,39 +102,39 @@ class FrappeDiff:
     def red_kvp(self, key: str, value: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
+                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
                 key,
                 value,
                 style="red",
             )
         else:
             tree.add(
-                f"[red][bold]{self.base_ln.key(self.conc_b_path)}[/bold] {key} : {value}[/red]"
+                f"[red][bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {key} : {value}[/red]"
             )
 
     def grn_kvp(self, key: str, value: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
+                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
                 key,
                 value,
                 style="green",
             )
         else:
             tree.add(
-                f"[green][bold]{self.base_ln.key(self.conc_h_path)}[/bold] {key} : {value}[/green]"
+                f"[green][bold]+ {self.base_ln.key(self.conc_h_path)}[/bold] {key} : {value}[/green]"
             )
 
     def mod_kvp(self, key: str, b_val: str, h_val: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
+                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
                 f"[default]{key}[/default]",
                 b_val,
                 style="red",
             )
             self.table.add_row(
-                f"[bold]{self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
+                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
                 f"[default]{key}[/default]",
                 h_val,
                 style="green",
@@ -157,13 +156,11 @@ class FrappeDiff:
     ) -> Tree:
 
         list_tree = Tree(name)
-        self.common_key = None
-        isdict = False
 
         # one (and only one) list may be empty
         mt_handler = base_list or head_list
-        if type(mt_handler[0]) is dict:
-            isdict = self.get_common_key(name, mt_handler)
+        if isdict := type(mt_handler[0]) is dict:
+            self.common_key = self.get_common_key(name, mt_handler)
 
         if base_list and head_list and isdict:
             # Create sets of values of common keys for lists of dicts
@@ -214,52 +211,51 @@ class FrappeDiff:
 
     def get_common_key(self, name: str, dict_list: list) -> True:
         common_keys = {
+            "custom_fields": "fieldname",
             "fields": "fieldname",
-            "permissions": "role",
             "actions": "label",
             "links": "link_doctype",
-            "custom_fields": "fieldname",
-            "property_setters": "field_name",
+            "property_setters": "name",
+            "custom_perms": "role",
+            "permissions": "role",
         }
-
-        if name in common_keys:
-            self.common_key = common_keys[name]
+        if (common_key := common_keys.get(name)) is not None:
+            return common_key
         else:
+            # Find common keys then return the first one with all unique values.
             # https://stackoverflow.com/a/13985856/14410691
             common_keys = set.intersection(*map(set, dict_list))
-            final_keys = []
-            for key in self.common_keys:
-                # find common keys with unique values. If multiple, pick one to use
-                if len(dict_list) == len({[d[key] for d in dict_list]}):
-                    final_keys.append(key)
-                try:
-                    self.common_key = final_keys[0]
-                except IndexError:
-                    print(
-                        "No unique common_key : values - dictionaries can't be diffed based on content"
-                    )
-        return True
+            for key in common_keys:
+                if len(dict_list) == len(set(d[key] for d in dict_list)):
+                    return key
+            print(
+                "No unique common_key : values - dictionaries can't be diffed based on content"
+            )
+            return
 
     def red_elem(self, elem: str, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.base_ln.val(path)}[/bold] {path}", elem, "", style="red"
+                f"[bold]- {self.base_ln.val(path)}[/bold] {path}", elem, "", style="red"
             )
         else:
-            tree.add(f"[red][bold]{self.base_ln.val(path)}[/bold] {elem}[/red]")
+            tree.add(f"[red][bold]- {self.base_ln.val(path)}[/bold] {elem}[/red]")
 
     def grn_elem(self, elem: str, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.val(path)}[/bold] {path}", elem, "", style="green"
+                f"[bold]+ {self.head_ln.val(path)}[/bold] {path}",
+                elem,
+                "",
+                style="green",
             )
         else:
-            tree.add(f"[green][bold]{self.head_ln.val(path)}[/bold] {elem}[/green]")
+            tree.add(f"[green][bold]+ {self.head_ln.val(path)}[/bold] {elem}[/green]")
 
     def red_dict(self, bdict: dict, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.val(path)}[/bold] {path}",
+                f"[bold]- {self.base_ln.val(path)}[/bold] {path}",
                 bdict[self.common_key],
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="red",
@@ -273,15 +269,15 @@ class FrappeDiff:
                 )
         else:
             dict_tree = tree.add(
-                f"[red][bold]{self.base_ln.val(path)}[/bold] {bdict[self.common_key]}[/red]"
+                f"[red][bold]- {self.base_ln.val(path)}[/bold] {bdict[self.common_key]}[/red]"
             )
             for k, v in bdict.items():
-                dict_tree.add(f"[red]{k} : {v}[/red]")
+                dict_tree.add(f"[red]- {k} : {v}[/red]")
 
     def grn_dict(self, hdict: dict, path: str, tree: Tree) -> None:
         if self.print_table:
             self.table.add_row(
-                f"[bold]{self.head_ln.val(path)}[/bold] {path}",
+                f"[bold]+ {self.head_ln.val(path)}[/bold] {path}",
                 hdict[self.common_key],
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="green",
@@ -295,10 +291,10 @@ class FrappeDiff:
                 )
         else:
             dict_tree = tree.add(
-                f"[green][bold]{self.head_ln.val(path)}[/bold] {hdict[self.common_key]}[/green]"
+                f"[green][bold]+ {self.head_ln.val(path)}[/bold] {hdict[self.common_key]}[/green]"
             )
             for k, v in hdict.items():
-                dict_tree.add(f"[green]{k} : {v}[/green]")
+                dict_tree.add(f"[green]+ {k} : {v}[/green]")
 
 
 @dataclass
@@ -346,25 +342,24 @@ def print_custom(path: str) -> None:
 if __name__ == "__main__":
 
     # https://github.com/azrafe7/test_python_rich_on_gh_pages/blob/0015be3b6b1925c4d4c9acbaed319666ff7cec89/main.py
-    console = Console(force_terminal=True, log_time=False, log_path=False)
-    
-    print(sys.argv)
+    console = Console(force_terminal=True, width=150, log_time=False, log_path=False)
+
     old_path = sys.argv[2]
     old_hex = sys.argv[3]
     new_path = sys.argv[5]
     new_hex = sys.argv[6]
-    table_mode = os.getenv("TABLE_MODE")
+    table_mode = int(os.getenv("TABLE_MODE"))
 
     try:
-        if sys.argv[2].split('.')[-1] == 'json' or sys.argv[5].split('.')[-1] == 'json':
-            if sys.argv[6] == '.':
-                console.log(f"[bold][red]Removed: {sys.argv[2].split('/')[-1]}[/red][/bold]")
+        if old_path.split(".")[-1] == "json" or new_path.split(".")[-1] == "json":
+            if new_hex == ".":
+                console.log(
+                    f"[bold][red]Removed: {old_path.split('/')[-1]}[/red][/bold]"
+                )
             else:
-                diff = FrappeDiff(old_path, old_hex, new_path, new_hex, table_mode)
+                diff = FrappeDiff(old_path, new_path, table_mode)
                 diff.prep()
                 diff.print()
     except Exception as e:
         print(e)
     console.log("\n")
-
-
