@@ -1,10 +1,9 @@
 name: Diff Sample
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-
+    branches: [main]
 
 jobs:
   Diff:
@@ -23,7 +22,7 @@ jobs:
           chmod +x ./frappe_schema_json_diff.py
           echo "GIT_EXTERNAL_DIFF=./frappe_schema_json_diff.py" >> $GITHUB_ENV
           echo "TABLE_MODE=1" >> $GITHUB_ENV
-      
+
       - name: Diff
         run: |
           git --no-pager diff HEAD~1 HEAD > diff_output.txt
@@ -35,7 +34,7 @@ jobs:
           pip install ansi2html
           cat diff_output.txt | ansi2html > diff_output.html
           sed -i -n '/<pre class="ansi2html-content">/,/<\/pre>/p' diff_output.html
-      
+
       - name: Post comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v6
@@ -57,8 +56,3 @@ jobs:
               issue_number: issue_number,
               body: output,
             });
-
-
-
-
-
