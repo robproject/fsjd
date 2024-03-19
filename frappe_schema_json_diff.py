@@ -350,16 +350,15 @@ if __name__ == "__main__":
     new_hex = sys.argv[6]
     table_mode = int(os.getenv("TABLE_MODE"))
 
-    try:
-        if old_path.split(".")[-1] == "json" or new_path.split(".")[-1] == "json":
-            if new_hex == ".":
-                console.log(
-                    f"[bold][red]Removed: {old_path.split('/')[-1]}[/red][/bold]"
-                )
-            else:
-                diff = FrappeDiff(old_path, new_path, table_mode)
-                diff.prep()
-                diff.print()
-    except Exception as e:
-        print(e)
-    console.log("\n")
+    if old_path.rsplit(".", maxsplit=1)[-1] == "json":
+        if new_hex == ".":
+            console.log(
+                f"[bold][red]Removed: {old_path.split('/')[-1]}[/red][/bold]"
+            )
+        else:
+            if "custom" in new_path:
+                console.log(f"[bold][magenta]Custom File:[/magenta][/bold]")
+            diff = FrappeDiff(old_path, new_path, table_mode)
+            diff.prep()
+            diff.print()
+        console.log()

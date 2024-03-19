@@ -1,9 +1,8 @@
 name: Release
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   Release:
@@ -15,12 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          cache: npm
-          node-version: lts/*
-      - run: npm clean-install
-      - run: corepack npm audit signatures
-      - run: npx semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - uses: python-semantic-release/python-semantic-release@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          git_committer_name: Robert Duncan
+          git_committer_email: robirtduncan@gmail.com
