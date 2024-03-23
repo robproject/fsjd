@@ -354,6 +354,3 @@ if __name__ == "__main__":
             diff.prep()
             diff.print()
         console.log()
-
-    import os, psutil  # Get the parent process name. 
-    pprocName = psutil.Process(os.getppid()).name()
