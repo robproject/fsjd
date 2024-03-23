@@ -2,7 +2,6 @@
 from dataclasses import dataclass
 import os
 import json
-import re
 from typing import Optional
 import sys
 
@@ -334,11 +333,6 @@ def symmetric_diff_sep(
     return exclusive_set1, exclusive_set2
 
 
-def print_custom(path: str) -> None:
-    if re.search("\/custom\/.*\.json", path):
-        console.log(f"[bold magenta]Custom File[/bold magenta]")
-
-
 if __name__ == "__main__":
 
     # https://github.com/azrafe7/test_python_rich_on_gh_pages/blob/0015be3b6b1925c4d4c9acbaed319666ff7cec89/main.py
@@ -352,9 +346,7 @@ if __name__ == "__main__":
 
     if old_path.rsplit(".", maxsplit=1)[-1] == "json":
         if new_hex == ".":
-            console.log(
-                f"[bold][red]Removed: {old_path.split('/')[-1]}[/red][/bold]"
-            )
+            console.log(f"[bold][red]Removed: {old_path.split('/')[-1]}[/red][/bold]")
         else:
             if "custom" in new_path:
                 console.log(f"[bold][magenta]Custom File:[/magenta][/bold]")
@@ -362,3 +354,6 @@ if __name__ == "__main__":
             diff.prep()
             diff.print()
         console.log()
+
+    import os, psutil  # Get the parent process name. 
+    pprocName = psutil.Process(os.getppid()).name()
