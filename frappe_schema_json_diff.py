@@ -121,7 +121,7 @@ class FrappeDiff:
             )
         else:
             tree.add(
-                f"[green][bold]+ {self.base_ln.key(self.conc_h_path)}[/bold] {key} : {value}[/green]"
+                f"[green][bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {key} : {value}[/green]"
             )
 
     def mod_kvp(self, key: str, b_val: str, h_val: str, tree: Tree) -> None:
