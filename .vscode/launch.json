@@ -1,0 +1,24 @@
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Compare JSON Files",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/frappe_schema_json_diff.py",
+            "console": "integratedTerminal",
+            "env": {
+                "TABLE_MODE": "0"
+            },
+            "args": [
+				"fill",
+                "${workspaceFolder}/old.json",
+                "old_hex_placeholder",
+				"fill",
+                "${workspaceFolder}/onew.json",
+                "new_hex_placeholder"
+            ]
+        }
+    ]
+}
