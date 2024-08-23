@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2.1.1 (2024-08-23)
+
+### Fix
+
+* fix: finish common key var separation (#17) ([`6053cef`](https://github.com/robproject/fsjd/commit/6053cef15965f4d638a2090b9897a36560455940))
+
 ## v2.1.0 (2024-08-23)
 
 ### Feature
