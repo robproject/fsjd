@@ -1,13 +1,24 @@
 # CHANGELOG
 
+## v2.1.0 (2024-08-23)
 
+### Feature
+
+* feat: handle fixtures (#15) ([`6e93e1c`](https://github.com/robproject/fsjd/commit/6e93e1c0d288a79ef05c2f5fc708a62b48032afd))
+
+### Unknown
+
+* Fix tree add green kvp (#13)
+
+* test: add launch config
+
+* fix: head path for tree view ([`81fd1c6`](https://github.com/robproject/fsjd/commit/81fd1c64058b87424dbff342fce2012ce311ff6d))
 
 ## v2.0.5 (2024-03-23)
 
 ### Fix
 
 * fix: release v2.0.5 ([`b0ddfd5`](https://github.com/robproject/fsjd/commit/b0ddfd5201b684de4244e83544dc20e54a0b2b8f))
-
 
 ## v2.0.4 (2024-03-23)
 
@@ -46,7 +57,6 @@ Refs: #7, #8 ([`ac998c2`](https://github.com/robproject/fsjd/commit/ac998c24b5e4
 
 Co-authored-by: Robert Duncan &lt;robir@puter.lan&gt; ([`8ff8df0`](https://github.com/robproject/fsjd/commit/8ff8df0e112000373661c70c7b4f85591ecb866d))
 
-
 ## v2.0.1 (2023-10-21)
 
 ### Fix
@@ -54,7 +64,6 @@ Co-authored-by: Robert Duncan &lt;robir@puter.lan&gt; ([`8ff8df0`](https://githu
 * fix: update workflow
 
 Should have been committed in v2.0.0 release ([`d35e7ea`](https://github.com/robproject/fsjd/commit/d35e7eae925655ef65dafd678356bc6db3f5ed02))
-
 
 ## v2.0.0 (2023-10-21)
 
@@ -89,7 +98,6 @@ BREAKING CHANGE: Total rework ([`850cc7b`](https://github.com/robproject/fsjd/co
 
 * Update README.md ([`f52442a`](https://github.com/robproject/fsjd/commit/f52442af2f057d0a16cc26fff3a363b760bc1b6a))
 
-
 ## v1.0.2 (2022-08-12)
 
 ### Chore
@@ -102,7 +110,6 @@ BREAKING CHANGE: Total rework ([`850cc7b`](https://github.com/robproject/fsjd/co
 
 * fix: modified and modified_by keys ignored ([`e4f6634`](https://github.com/robproject/fsjd/commit/e4f66341c4e56395f31bf9f81bd28bc90a0b6e63))
 
-
 ## v1.0.1 (2022-08-12)
 
 ### Fix
@@ -112,7 +119,6 @@ BREAKING CHANGE: Total rework ([`850cc7b`](https://github.com/robproject/fsjd/co
 ### Unknown
 
 * wip: readme format ([`d859094`](https://github.com/robproject/fsjd/commit/d859094e7e573f8c6dbd1528f86e6308196c1e59))
-
 
 ## v1.0.0 (2022-08-11)
 
