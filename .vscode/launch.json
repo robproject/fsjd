@@ -19,6 +19,42 @@
                 "${workspaceFolder}/onew.json",
                 "new_hex_placeholder"
             ]
+        },
+        {
+            "name": "Compare JSON PF Files",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/frappe_schema_json_diff.py",
+            "console": "integratedTerminal",
+            "env": {
+                "TABLE_MODE": "0"
+            },
+            "args": [
+				"fill",
+                "${workspaceFolder}/pf_original.json",
+                "old_hex_placeholder",
+				"fill",
+                "${workspaceFolder}/pf_removed.json",
+                "new_hex_placeholder"
+            ]
+        },
+        {
+            "name": "Compare JSON Fixtures",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/frappe_schema_json_diff.py",
+            "console": "integratedTerminal",
+            "env": {
+                "TABLE_MODE": "0"
+            },
+            "args": [
+				"fill",
+                "${workspaceFolder}/fixture_old.json",
+                "old_hex_placeholder",
+				"fill",
+                "${workspaceFolder}/fixture_new.json",
+                "new_hex_placeholder"
+            ]
         }
     ]
 }
