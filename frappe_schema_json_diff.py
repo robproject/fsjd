@@ -183,7 +183,7 @@ class FrappeDiff:
                 bd_kv = bd[common_key]
                 conc_b_path = f"{b_path}/{i}"
                 if bd_kv in deleted_dict_keys:
-                    self.red_dict(bd, conc_b_path, list_tree)
+                    self.red_dict(bd, conc_b_path, list_tree, common_key)
                     deleted_dict_keys.remove(bd_kv)
                 else:
                     for j, hd in enumerate(head_list):
@@ -197,13 +197,13 @@ class FrappeDiff:
                             if rtree.children:
                                 list_tree.add(rtree)
                         elif hd_kv in added_dict_keys:
-                            self.grn_dict(hd, conc_h_path, list_tree)
+                            self.grn_dict(hd, conc_h_path, list_tree, common_key)
                             added_dict_keys.remove(hd_kv)
         elif isdict:
             for i, d in enumerate(base_list):
-                self.red_dict(d, f"{b_path}/{i}", list_tree)
+                self.red_dict(d, f"{b_path}/{i}", list_tree, common_key)
             for i, d in enumerate(head_list):
-                self.grn_dict(d, f"{h_path}/{i}", list_tree)
+                self.grn_dict(d, f"{h_path}/{i}", list_tree, common_key)
         else:
             del_set, add_set = symmetric_diff_sep(set(base_list), set(head_list))
             for i, e in enumerate(base_list):
@@ -258,11 +258,11 @@ class FrappeDiff:
                                 list_tree.add(rtree)
             conc_b_path = f"{b_path}/{i}"
             if bd_kv in deleted_dict_keys:
-                self.red_dict(bd, conc_b_path, list_tree)
+                self.red_dict(bd, conc_b_path, list_tree, common_key)
                 deleted_dict_keys.remove(bd_kv)
             else:
                 for j, hd in enumerate(head_list):
-                    hd_kv = hd[self.common_key]
+                    # !!! hd_kv = hd[self.common_key]
                     conc_h_path = f"{h_path}/{j}"
                     if bd_kv == hd_kv and bd_kv in diff_dict_keys:
                         rtree = self.dict_diff(
@@ -337,46 +337,46 @@ class FrappeDiff:
         else:
             tree.add(f"[green][bold]+ {self.head_ln.val(path)}[/bold] {elem}[/green]")
 
-    def red_dict(self, bdict: dict, path: str, tree: Tree) -> None:
+    def red_dict(self, bdict: dict, path: str, tree: Tree, common_key: str) -> None:
         if self.print_table:
             self.table.add_row(
                 f"[bold]- {self.base_ln.val(path)}[/bold] {path}",
-                bdict[self.common_key],
+                bdict[common_key],
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="red",
             )
             for k, v in bdict.items():
                 self.table.add_row(
-                    f"[bold magenta]In Dict:[/bold magenta] {bdict[self.common_key]}",
+                    f"[bold magenta]In Dict:[/bold magenta] {bdict[common_key]}",
                     k,
                     f"{v}",
                     style="red",
                 )
         else:
             dict_tree = tree.add(
-                f"[red][bold]- {self.base_ln.val(path)}[/bold] {bdict[self.common_key]}[/red]"
+                f"[red][bold]- {self.base_ln.val(path)}[/bold] {bdict[common_key]}[/red]"
             )
             for k, v in bdict.items():
                 dict_tree.add(f"[red]- {k} : {v}[/red]")
 
-    def grn_dict(self, hdict: dict, path: str, tree: Tree) -> None:
+    def grn_dict(self, hdict: dict, path: str, tree: Tree, common_key: str) -> None:
         if self.print_table:
             self.table.add_row(
                 f"[bold]+ {self.head_ln.val(path)}[/bold] {path}",
-                hdict[self.common_key],
+                hdict[common_key],
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="green",
             )
             for k, v in hdict.items():
                 self.table.add_row(
-                    f"[bold magenta]In Dict:[/bold magenta] {hdict[self.common_key]}",
+                    f"[bold magenta]In Dict:[/bold magenta] {hdict[common_key]}",
                     k,
                     f"{v}",
                     style="green",
                 )
         else:
             dict_tree = tree.add(
-                f"[green][bold]+ {self.head_ln.val(path)}[/bold] {hdict[self.common_key]}[/green]"
+                f"[green][bold]+ {self.head_ln.val(path)}[/bold] {hdict[common_key]}[/green]"
             )
             for k, v in hdict.items():
                 dict_tree.add(f"[green]+ {k} : {v}[/green]")
