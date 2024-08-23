@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from dataclasses import dataclass
+import difflib
 import os
 import json
 from typing import Optional
@@ -48,11 +49,18 @@ class FrappeDiff:
         self.table = table
 
     def print(self):
-        self.tree = self.dict_diff(
-            self.label,
-            self.base_obj,
-            self.head_obj,
-        )
+        if isinstance(self.base_obj, list):
+            self.tree = self.list_diff(
+                self.label,
+                self.base_obj,
+                self.head_obj,
+            )
+        elif isinstance(self.base_obj, dict):
+            self.tree = self.dict_diff(
+                self.label,
+                self.base_obj,
+                self.head_obj,
+            )
         if self.tree.children:
             console.log(self.tree)
         elif self.table and self.table.rows:
@@ -150,8 +158,8 @@ class FrappeDiff:
         name: str,
         base_list: list,
         head_list: list,
-        b_path: str,
-        h_path: str,
+        b_path: str="",
+        h_path: str="",
     ) -> Tree:
 
         list_tree = Tree(name)
@@ -159,26 +167,27 @@ class FrappeDiff:
         # one (and only one) list may be empty
         mt_handler = base_list or head_list
         if isdict := type(mt_handler[0]) is dict:
-            self.common_key = self.get_common_key(name, mt_handler)
+            # New common_key per call of list_diff.
+            common_key = self.get_common_key(name, mt_handler)
 
         if base_list and head_list and isdict:
             # Create sets of values of common keys for lists of dicts
-            head_dicts = {k[self.common_key] for k in head_list}
-            base_dicts = {k[self.common_key] for k in base_list}
+            head_dicts = {k[common_key] for k in head_list}
+            base_dicts = {k[common_key] for k in base_list}
             deleted_dict_keys, added_dict_keys = symmetric_diff_sep(
                 base_dicts, head_dicts
             )
             diff_dict_keys = head_dicts - added_dict_keys
 
             for i, bd in enumerate(base_list):
-                bd_kv = bd[self.common_key]
+                bd_kv = bd[common_key]
                 conc_b_path = f"{b_path}/{i}"
                 if bd_kv in deleted_dict_keys:
                     self.red_dict(bd, conc_b_path, list_tree)
                     deleted_dict_keys.remove(bd_kv)
                 else:
                     for j, hd in enumerate(head_list):
-                        hd_kv = hd[self.common_key]
+                        hd_kv = hd[common_key]
                         conc_h_path = f"{h_path}/{j}"
                         if bd_kv == hd_kv and bd_kv in diff_dict_keys:
                             rtree = self.dict_diff(
@@ -208,6 +217,81 @@ class FrappeDiff:
 
         return list_tree
 
+    def pf_diff(
+        self,
+        name: str,
+        base_list: list,
+        head_list: list,
+        b_path: str,
+        h_path: str,
+        ) -> Tree:
+
+        return
+        list_tree = Tree(name)
+        # each list contains dicts with keys "fieldname" and "fieldtype", and any number of additions, deletions, modifications, and duplications
+        # feed difflib with the rendered version of each list; need to expand the 'options' field for Custom HTML dicts and put it in the list
+        json.loads(base_str) # dict value =
+
+
+        for i, bd in enumerate(base_list):
+            if bd["fieldtype"] == "Custom HTML":
+                bd_kv = bd["fieldname"]
+                conc_b_path = f"{b_path}/{i}"
+                if (len(head_list) - 1) > i and head_list[i]["fieldtype"] == "Custom HTML":
+                    hd_kv = head_list[i]["fieldname"]
+                    conc_h_path = f"{h_path}/{i}"
+                    if bd_kv == hd_kv:
+                        rtree = self.dict_diff(
+                            bd_kv, bd, head_list[i], conc_b_path, conc_h_path
+                        )
+                        if rtree.children:
+                            list_tree.add(rtree)
+                for j, hd in enumerate(head_list):
+                    if hd["fieldtype"] == "Custom HTML":
+                        hd_kv = hd["fieldname"]
+                        conc_h_path = f"{h_path}/{j}"
+                        if bd_kv == hd_kv:
+                            rtree = self.dict_diff(
+                                bd_kv, bd, hd, conc_b_path, conc_h_path
+                            )
+                            if rtree.children:
+                                list_tree.add(rtree)
+            conc_b_path = f"{b_path}/{i}"
+            if bd_kv in deleted_dict_keys:
+                self.red_dict(bd, conc_b_path, list_tree)
+                deleted_dict_keys.remove(bd_kv)
+            else:
+                for j, hd in enumerate(head_list):
+                    hd_kv = hd[self.common_key]
+                    conc_h_path = f"{h_path}/{j}"
+                    if bd_kv == hd_kv and bd_kv in diff_dict_keys:
+                        rtree = self.dict_diff(
+                            bd_kv, bd, hd, conc_b_path, conc_h_path
+                        )
+                        diff_dict_keys.remove(bd_kv)
+                        if rtree.children:
+                            list_tree.add(rtree)
+                    elif hd_kv in added_dict_keys:
+                        self.grn_dict(hd, conc_h_path, list_tree)
+                        added_dict_keys.remove(hd_kv)
+        #elif isdict:
+        #    for i, d in enumerate(base_list):
+        #        self.red_dict(d, f"{b_path}/{i}", list_tree)
+        #    for i, d in enumerate(head_list):
+        #        self.grn_dict(d, f"{h_path}/{i}", list_tree)
+        #else:
+        #    del_set, add_set = symmetric_diff_sep(set(base_list), set(head_list))
+        #    for i, e in enumerate(base_list):
+        #        if e in del_set:
+        #            self.red_elem(e, f"{b_path}/{i}", list_tree)
+        #            del_set.remove(e)
+        #    for i, e in enumerate(head_list):
+        #        if e in add_set:
+        #            self.grn_elem(e, f"{h_path}/{i}", list_tree)
+        #            add_set.remove(e)
+
+        #return list_tree
+
     def get_common_key(self, name: str, dict_list: list) -> True:
         common_keys = {
             "custom_fields": "fieldname",
@@ -220,12 +304,14 @@ class FrappeDiff:
         }
         if (key := common_keys.get(name)) is not None:
             return key
+        elif '.json' in name:
+            return 'name'
         else:
             # Find common keys then return the first one with all unique values.
             # https://stackoverflow.com/a/13985856/14410691
             common_keys = set.intersection(*map(set, dict_list))
             for key in common_keys:
-                if len(dict_list) == len(set(d[key] for d in dict_list)):
+                if len(dict_list) == len(set(d[key] for d in dict_list if d[key] is not None)):
                     return key
             print(
                 "No unique common_key : values - dictionaries can't be diffed based on content"
@@ -332,6 +418,12 @@ def symmetric_diff_sep(
     exclusive_set2 = set2 - set1
     return exclusive_set1, exclusive_set2
 
+def is_json(text):
+    try:
+        json.loads(text)
+    except ValueError as e:
+        return False
+    return True
 
 if __name__ == "__main__":
 
