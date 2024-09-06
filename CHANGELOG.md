@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2.1.2 (2024-09-06)
+
+### Fix
+
+* fix: user fixture roles lod ([`12ffadb`](https://github.com/robproject/fsjd/commit/12ffadb25850196e2ea78117fb7e4f92f33cfe89))
+
 ## v2.1.1 (2024-08-23)
 
 ### Fix
