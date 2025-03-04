@@ -103,10 +103,12 @@ class FrappeDiff:
                     # feed difflib with the 'printed' version; don't include so many json escapes. need to expand the 'options' field for Custom HTML dicts and put it in the list
                     if bk != "format_data":
                         self.mod_kvp(bk, f"{bk_v}", f"{hk_v}", dict_tree)
-                    # else:
-                    #    rtree = self.pf_diff(bk, bk_v, hk_v, self.conc_b_path, self.conc_h_path)
-                    #    if rtree.children:
-                    #        dict_tree.add(rtree)
+                    else:
+                        rtree = self.pf_diff(
+                            bk, bk_v, hk_v, self.conc_b_path, self.conc_h_path
+                        )
+                        if rtree.children:
+                            dict_tree.add(rtree)
             else:
                 self.red_kvp(bk, f"{bk_v}", dict_tree)
         for hk in list(set(head_dict) - set(base_dict)):
@@ -306,11 +308,14 @@ class FrappeDiff:
             "custom_fields": "fieldname",
             "fields": "fieldname",
             "actions": "label",
-            "links": "link_doctype",
+            # "links": "link_doctype",
+            "links": "link_to",
             "property_setters": "name",
             "custom_perms": "role",
             "permissions": "role",
             "roles": "role",
+            "states": "state",
+            "transitions": "state",
         }
         if (key := common_keys.get(name)) is not None:
             return key
