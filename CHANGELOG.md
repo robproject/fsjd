@@ -1,187 +1,185 @@
 # CHANGELOG
 
+
+## v2.1.3 (2025-03-04)
+
+### Bug Fixes
+
+- Handle workflow fixture
+  ([`1a916dd`](https://github.com/robproject/fsjd/commit/1a916dd7f1c9321caa0eaf23f4b6efb5c4b306fb))
+
+
 ## v2.1.2 (2024-09-06)
 
-### Fix
+### Bug Fixes
 
-* fix: user fixture roles lod ([`12ffadb`](https://github.com/robproject/fsjd/commit/12ffadb25850196e2ea78117fb7e4f92f33cfe89))
+- User fixture roles lod
+  ([`12ffadb`](https://github.com/robproject/fsjd/commit/12ffadb25850196e2ea78117fb7e4f92f33cfe89))
+
 
 ## v2.1.1 (2024-08-23)
 
-### Fix
+### Bug Fixes
 
-* fix: finish common key var separation (#17) ([`6053cef`](https://github.com/robproject/fsjd/commit/6053cef15965f4d638a2090b9897a36560455940))
+- Finish common key var separation ([#17](https://github.com/robproject/fsjd/pull/17),
+  [`6053cef`](https://github.com/robproject/fsjd/commit/6053cef15965f4d638a2090b9897a36560455940))
+
 
 ## v2.1.0 (2024-08-23)
 
-### Feature
+### Features
 
-* feat: handle fixtures (#15) ([`6e93e1c`](https://github.com/robproject/fsjd/commit/6e93e1c0d288a79ef05c2f5fc708a62b48032afd))
+- Handle fixtures ([#15](https://github.com/robproject/fsjd/pull/15),
+  [`6e93e1c`](https://github.com/robproject/fsjd/commit/6e93e1c0d288a79ef05c2f5fc708a62b48032afd))
 
-### Unknown
-
-* Fix tree add green kvp (#13)
-
-* test: add launch config
-
-* fix: head path for tree view ([`81fd1c6`](https://github.com/robproject/fsjd/commit/81fd1c64058b87424dbff342fce2012ce311ff6d))
 
 ## v2.0.5 (2024-03-23)
 
-### Fix
+### Bug Fixes
 
-* fix: release v2.0.5 ([`b0ddfd5`](https://github.com/robproject/fsjd/commit/b0ddfd5201b684de4244e83544dc20e54a0b2b8f))
+- Release v2.0.5
+  ([`b0ddfd5`](https://github.com/robproject/fsjd/commit/b0ddfd5201b684de4244e83544dc20e54a0b2b8f))
+
 
 ## v2.0.4 (2024-03-23)
 
-### Fix
+### Bug Fixes
 
-* fix: v2.0.4 ([`3de3a9b`](https://github.com/robproject/fsjd/commit/3de3a9b056e60df2b877473bddaad0ad1b9240fe))
+- Clear history, refactor, and fix issues
+  ([`ac998c2`](https://github.com/robproject/fsjd/commit/ac998c24b5e4f2c6971acc4f979575afb8503fc9))
 
-* fix: remove console detection draft ([`dd8af8b`](https://github.com/robproject/fsjd/commit/dd8af8bdfb366a1af9761b161057e92ec262a26a))
+Fix common key handling; add key for custom permission. Fix table mode dictionary deletion.
 
-* fix: refactor diff, release, and ci
+Refs: #7, #8
 
-Remove unused regex in diff.
-Refactor release ci.
-Upgrade diff ci script version and refactor branch. ([`bcfb91a`](https://github.com/robproject/fsjd/commit/bcfb91a12be4b32dedd815b41e88ccecd39187da))
+- Refactor diff, release, and ci
+  ([`bcfb91a`](https://github.com/robproject/fsjd/commit/bcfb91a12be4b32dedd815b41e88ccecd39187da))
 
-* fix: v2 update ci (#9)
+Remove unused regex in diff. Refactor release ci. Upgrade diff ci script version and refactor
+  branch.
 
-Co-authored-by: Robert Duncan &lt;robir@puter.lan&gt; ([`4461a74`](https://github.com/robproject/fsjd/commit/4461a7498ca10f323e217781697ad544ffb5878b))
+- Remove console detection draft
+  ([`dd8af8b`](https://github.com/robproject/fsjd/commit/dd8af8bdfb366a1af9761b161057e92ec262a26a))
 
-* fix: clear history, refactor, and fix issues
+- V2 update ci ([#9](https://github.com/robproject/fsjd/pull/9),
+  [`4461a74`](https://github.com/robproject/fsjd/commit/4461a7498ca10f323e217781697ad544ffb5878b))
 
-Fix common key handling; add key for custom permission.
-Fix table mode dictionary deletion.
+Co-authored-by: Robert Duncan <robir@puter.lan>
 
-Refs: #7, #8 ([`ac998c2`](https://github.com/robproject/fsjd/commit/ac998c24b5e4f2c6971acc4f979575afb8503fc9))
+- V2.0.4
+  ([`3de3a9b`](https://github.com/robproject/fsjd/commit/3de3a9b056e60df2b877473bddaad0ad1b9240fe))
 
-### Unknown
-
-* V2 update ci (#10)
-
-* fix: v2 update ci
-
-* fix: ci release
-
----------
-
-Co-authored-by: Robert Duncan &lt;robir@puter.lan&gt; ([`8ff8df0`](https://github.com/robproject/fsjd/commit/8ff8df0e112000373661c70c7b4f85591ecb866d))
 
 ## v2.0.1 (2023-10-21)
 
-### Fix
+### Bug Fixes
 
-* fix: update workflow
+- Update workflow
+  ([`d35e7ea`](https://github.com/robproject/fsjd/commit/d35e7eae925655ef65dafd678356bc6db3f5ed02))
 
-Should have been committed in v2.0.0 release ([`d35e7ea`](https://github.com/robproject/fsjd/commit/d35e7eae925655ef65dafd678356bc6db3f5ed02))
+Should have been committed in v2.0.0 release
+
 
 ## v2.0.0 (2023-10-21)
 
-### Breaking
+### Chores
 
-* feat!: use GIT_EXTERNAL_DIFF
+- Update submodule
+  ([`34cce12`](https://github.com/robproject/fsjd/commit/34cce1241a4d146ae729bc01b756fb12ece5d089))
 
-Remove all file preparation, now handled by git.
-Remove submodule.
-Rework sample workflow.
-Update doc.
-Rework diff script to be used by GIT_EXTERNAL_DIFF.
-Remove VSCode launch config.
+- Update submodule
+  ([`d78d7cc`](https://github.com/robproject/fsjd/commit/d78d7ccc0967d9e902d5b416cdcea72d2aa0c506))
 
-BREAKING CHANGE: Total rework ([`850cc7b`](https://github.com/robproject/fsjd/commit/850cc7b5a9cf92b3f0bbe8e89667d9cc4cb2979b))
+- Update submodule, gha example
+  ([`acf3d67`](https://github.com/robproject/fsjd/commit/acf3d67e0231ca8ac99125b0bd2bf7d6a651c966))
 
-### Chore
+### Features
 
-* chore: update submodule, gha example ([`acf3d67`](https://github.com/robproject/fsjd/commit/acf3d67e0231ca8ac99125b0bd2bf7d6a651c966))
+- Use GIT_EXTERNAL_DIFF
+  ([`850cc7b`](https://github.com/robproject/fsjd/commit/850cc7b5a9cf92b3f0bbe8e89667d9cc4cb2979b))
 
-* chore: update submodule ([`34cce12`](https://github.com/robproject/fsjd/commit/34cce1241a4d146ae729bc01b756fb12ece5d089))
+Remove all file preparation, now handled by git. Remove submodule. Rework sample workflow. Update
+  doc. Rework diff script to be used by GIT_EXTERNAL_DIFF. Remove VSCode launch config.
 
-* chore: update submodule ([`d78d7cc`](https://github.com/robproject/fsjd/commit/d78d7ccc0967d9e902d5b416cdcea72d2aa0c506))
+BREAKING CHANGE: Total rework
 
-### Test
+### Testing
 
-* test: modified file ([`046ae06`](https://github.com/robproject/fsjd/commit/046ae068afe1df27291634c54cc6e516c7734e05))
+- Modified file
+  ([`046ae06`](https://github.com/robproject/fsjd/commit/046ae068afe1df27291634c54cc6e516c7734e05))
 
-### Unknown
+### Breaking Changes
 
-* Update README.md ([`45faf55`](https://github.com/robproject/fsjd/commit/45faf55ab4ffeea37482da01add8a5610d09c631))
+- Total rework
 
-* Update README.md ([`f52442a`](https://github.com/robproject/fsjd/commit/f52442af2f057d0a16cc26fff3a363b760bc1b6a))
 
 ## v1.0.2 (2022-08-12)
 
-### Chore
+### Bug Fixes
 
-* chore: update submodule ([`fb4b9c0`](https://github.com/robproject/fsjd/commit/fb4b9c0fe2f2363c148df68be3e049681e89e171))
+- Modified and modified_by keys ignored
+  ([`e4f6634`](https://github.com/robproject/fsjd/commit/e4f66341c4e56395f31bf9f81bd28bc90a0b6e63))
 
-* chore: update submodule ([`d69a7db`](https://github.com/robproject/fsjd/commit/d69a7db5505204f7915b646c038c6313537283a9))
+### Chores
 
-### Fix
+- Update submodule
+  ([`fb4b9c0`](https://github.com/robproject/fsjd/commit/fb4b9c0fe2f2363c148df68be3e049681e89e171))
 
-* fix: modified and modified_by keys ignored ([`e4f6634`](https://github.com/robproject/fsjd/commit/e4f66341c4e56395f31bf9f81bd28bc90a0b6e63))
+- Update submodule
+  ([`d69a7db`](https://github.com/robproject/fsjd/commit/d69a7db5505204f7915b646c038c6313537283a9))
+
 
 ## v1.0.1 (2022-08-12)
 
-### Fix
+### Bug Fixes
 
-* fix: script clone depth 1 ([`6f0a277`](https://github.com/robproject/fsjd/commit/6f0a277dd5ba4d6e584f756e29fdc989ea214b80))
+- Script clone depth 1
+  ([`6f0a277`](https://github.com/robproject/fsjd/commit/6f0a277dd5ba4d6e584f756e29fdc989ea214b80))
 
-### Unknown
-
-* wip: readme format ([`d859094`](https://github.com/robproject/fsjd/commit/d859094e7e573f8c6dbd1528f86e6308196c1e59))
 
 ## v1.0.0 (2022-08-11)
 
-### Chore
+### Bug Fixes
 
-* chore: update submodule ([`a81f43c`](https://github.com/robproject/fsjd/commit/a81f43cfbc9a62b3fa88a7c410461eb35f1eb18b))
+- Add both output views
+  ([`6903b4b`](https://github.com/robproject/fsjd/commit/6903b4bbc024adcf7b685bda513311454baee2f3))
 
-### Feature
+- Base commit won't conflict
+  ([`0fe5b79`](https://github.com/robproject/fsjd/commit/0fe5b79b76c270680f592a0ff7ad2fb9e54a64b2))
 
-* feat: v1.0.0 ([`f4e6bb6`](https://github.com/robproject/fsjd/commit/f4e6bb69d6f6e83cd04000c2b720ff36ae6f37af))
+- Formatting
+  ([`3a2a3ed`](https://github.com/robproject/fsjd/commit/3a2a3ed74bbba9799ba4ffe006d706602febcddc))
 
-* feat: v1.0.0 ([`30a0b6a`](https://github.com/robproject/fsjd/commit/30a0b6a3aabad494fe8f494455f6fc77b0a2ee07))
+- Main.yml
+  ([`0eeb2ad`](https://github.com/robproject/fsjd/commit/0eeb2adb12542067221482e0d05a17f1601e7a7b))
 
-* feat: readme, test config ([`2fdca7a`](https://github.com/robproject/fsjd/commit/2fdca7a586f43ed829725391adab172689b41c00))
+- Remove tree sample run
+  ([`6646f96`](https://github.com/robproject/fsjd/commit/6646f968f1c8e34df2c156e1b5838792f9a3047d))
 
-### Fix
+- Separate diff runs
+  ([`0bbe4d5`](https://github.com/robproject/fsjd/commit/0bbe4d5353c11616526b79bc16e7b12256b4c28e))
 
-* fix: submodule update to handle json decode errors&#39; ([`a367378`](https://github.com/robproject/fsjd/commit/a367378295b481f0155fecd0019fd2f5ec15f240))
+- Submodule update to handle json decode errors'
+  ([`a367378`](https://github.com/robproject/fsjd/commit/a367378295b481f0155fecd0019fd2f5ec15f240))
 
-* fix: formatting ([`3a2a3ed`](https://github.com/robproject/fsjd/commit/3a2a3ed74bbba9799ba4ffe006d706602febcddc))
+- Update file path
+  ([`0fdd3fb`](https://github.com/robproject/fsjd/commit/0fdd3fb7d3656f79d0746b3feb686b85576b2e01))
 
-* fix: update paths ([`aa1c7b9`](https://github.com/robproject/fsjd/commit/aa1c7b903ee452d3beff097bcac736451897024a))
+- Update paths
+  ([`aa1c7b9`](https://github.com/robproject/fsjd/commit/aa1c7b903ee452d3beff097bcac736451897024a))
 
-* fix: remove tree sample run ([`6646f96`](https://github.com/robproject/fsjd/commit/6646f968f1c8e34df2c156e1b5838792f9a3047d))
+### Chores
 
-* fix: separate diff runs ([`0bbe4d5`](https://github.com/robproject/fsjd/commit/0bbe4d5353c11616526b79bc16e7b12256b4c28e))
+- Update submodule
+  ([`a81f43c`](https://github.com/robproject/fsjd/commit/a81f43cfbc9a62b3fa88a7c410461eb35f1eb18b))
 
-* fix: main.yml ([`0eeb2ad`](https://github.com/robproject/fsjd/commit/0eeb2adb12542067221482e0d05a17f1601e7a7b))
+### Features
 
-* fix: add both output views ([`6903b4b`](https://github.com/robproject/fsjd/commit/6903b4bbc024adcf7b685bda513311454baee2f3))
+- Readme, test config
+  ([`2fdca7a`](https://github.com/robproject/fsjd/commit/2fdca7a586f43ed829725391adab172689b41c00))
 
-* fix: update file path ([`0fdd3fb`](https://github.com/robproject/fsjd/commit/0fdd3fb7d3656f79d0746b3feb686b85576b2e01))
+- V1.0.0
+  ([`f4e6bb6`](https://github.com/robproject/fsjd/commit/f4e6bb69d6f6e83cd04000c2b720ff36ae6f37af))
 
-* fix: base commit won&#39;t conflict ([`0fe5b79`](https://github.com/robproject/fsjd/commit/0fe5b79b76c270680f592a0ff7ad2fb9e54a64b2))
-
-### Unknown
-
-* wip: update readme CI example ([`6b79d9d`](https://github.com/robproject/fsjd/commit/6b79d9d0c4d847c27dbce149a8912cc0aec7920d))
-
-* wip: readme format ([`3d31d03`](https://github.com/robproject/fsjd/commit/3d31d039ed2aecc1ff79d7c37596dcd03cfc92ee))
-
-* wip: readme photos ([`eafe230`](https://github.com/robproject/fsjd/commit/eafe23048d49de1bd56c3584fed59b29be331a46))
-
-* wip: update readme ([`32fd300`](https://github.com/robproject/fsjd/commit/32fd3001a81a66e274b6202efe2ef23232e0e0bf))
-
-* wip: sample doctype json ([`5e15c6f`](https://github.com/robproject/fsjd/commit/5e15c6fc446c2de8549191f52d00655585c7d6b2))
-
-* wip: formatting ([`130bd85`](https://github.com/robproject/fsjd/commit/130bd852147b3df4768ba365d6a5cf9f79566067))
-
-* wip: update submodule ([`dcb2128`](https://github.com/robproject/fsjd/commit/dcb21283b282018a150ea3bc6a1a1f603f8a88b0))
-
-* first commit ([`9644d25`](https://github.com/robproject/fsjd/commit/9644d258c927b13df1e31ff7b651a7105477b9c9))
-
-* Initial commit ([`035eae4`](https://github.com/robproject/fsjd/commit/035eae400ecf7ddc8a15b4c3b9cc32b03cda3f7d))
+- V1.0.0
+  ([`30a0b6a`](https://github.com/robproject/fsjd/commit/30a0b6a3aabad494fe8f494455f6fc77b0a2ee07))
