@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v2.1.4 (2025-03-30)
+
+### Bug Fixes
+
+- Discrete added dicts
+  ([`25c0cbc`](https://github.com/robproject/fsjd/commit/25c0cbc502fcdc77e3b62dd76b3084aca956a6d2))
+
+
 ## v2.1.3 (2025-03-04)
 
 ### Bug Fixes
