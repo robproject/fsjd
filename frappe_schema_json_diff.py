@@ -205,9 +205,11 @@ class FrappeDiff:
                             diff_dict_keys.remove(bd_kv)
                             if rtree.children:
                                 list_tree.add(rtree)
-                        elif hd_kv in added_dict_keys:
-                            self.grn_dict(hd, conc_h_path, list_tree, common_key)
-                            added_dict_keys.remove(hd_kv)
+            for i, hd in enumerate(head_list):
+                conc_h_path = f"{h_path}/{i}"
+                if (hd_kv := hd[common_key]) in added_dict_keys:
+                    self.grn_dict(hd, conc_h_path, list_tree, common_key)
+                    added_dict_keys.remove(hd_kv)
         elif isdict:
             for i, d in enumerate(base_list):
                 self.red_dict(d, f"{b_path}/{i}", list_tree, common_key)
