@@ -27,7 +27,6 @@ jobs:
 
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v6
-        if: steps.semantic-release.outputs.released == 'true'   # only run if new version
         with:
           distribution: goreleaser
           version: latest
