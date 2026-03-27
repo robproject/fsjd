@@ -1,5 +1,9 @@
+version: 2
+
 builds:
-  - env:
+  - binary: fsjd
+    main: ./frappe_schema_json_diff.go
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
