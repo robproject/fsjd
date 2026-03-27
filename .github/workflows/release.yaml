@@ -5,18 +5,30 @@ on:
       - main
 
 jobs:
-  Release:
-    name: Release
+  release:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: write
+      id-token: write
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: python-semantic-release/python-semantic-release@master
+
+      - uses: actions/setup-go@v5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          git_committer_name: Robert Duncan
-          git_committer_email: robirtduncan@gmail.com
+          go-version: stable
+
+      - name: Semantic Release
+        uses: python-semantic-release/python-semantic-release@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        if: steps.semantic-release.outputs.released == 'true'   # only run if new version
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
