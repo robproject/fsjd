@@ -6,11 +6,24 @@ When building and customizing Frappe Doctypes (schema), tracking changes can be 
 ### CLI Usage
 Add the following to ~/.bashrc to use the mechanics of `git diff` while outputting the result of fsjd.
 
+#### Python
 ```
 fdiff() {
     (
         export TABLE_MODE=1
         export GIT_EXTERNAL_DIFF=~/fsjd/frappe_schema_json_diff.py
+        git --no-pager diff "$@"
+        unset GIT_EXTERNAL_DIFF
+    )
+}
+```
+
+#### Go
+```
+fdiff() {
+    (
+        export TABLE_MODE=1
+        export GIT_EXTERNAL_DIFF=~/fsjd/fsjd
         git --no-pager diff "$@"
         unset GIT_EXTERNAL_DIFF
     )
