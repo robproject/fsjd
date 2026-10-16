@@ -1,0 +1,24 @@
+name: Test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup requirements
+        run: pip install rich json_source_map
+
+      - name: Test
+        run: python -m unittest discover -s tests -v
