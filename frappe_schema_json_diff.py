@@ -10,6 +10,7 @@ import sys
 
 from json_source_map import calculate
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 from rich.tree import Tree
 
@@ -35,7 +36,8 @@ class FrappeDiff:
             return json.loads(json_str), LineNos(json_str)
 
     def make_label(self) -> None:
-        self.label = f"[bold]{new_path.split('/')[-1]}[/bold]"
+        self.name = self.new_path.split("/")[-1]
+        self.label = f"[bold]{escape(self.name)}[/bold]"
 
     def prep_table(self) -> None:
         table = Table(
@@ -53,16 +55,17 @@ class FrappeDiff:
     def print(self):
         if isinstance(self.base_obj, list):
             self.tree = self.list_diff(
-                self.label,
+                self.name,
                 self.base_obj,
                 self.head_obj,
             )
         elif isinstance(self.base_obj, dict):
             self.tree = self.dict_diff(
-                self.label,
+                self.name,
                 self.base_obj,
                 self.head_obj,
             )
+        self.tree.label = self.label
         if self.tree.children:
             console.log(self.tree)
         elif self.table and self.table.rows:
@@ -79,7 +82,8 @@ class FrappeDiff:
         h_path: str = "",
     ) -> Tree:
 
-        dict_tree = Tree(name)
+        # Keys and values are data, not rich markup: escape them wherever they're printed.
+        dict_tree = Tree(escape(name))
 
         for bk, bk_v in base_dict.items():
             # concatenated path for passing to table/tree constructor functions: red_kvp, grn_kvp, mod_kvp
@@ -119,9 +123,10 @@ class FrappeDiff:
         return dict_tree
 
     def red_kvp(self, key: str, value: str, tree: Tree) -> None:
+        key, value = escape(key), escape(value)
         if self.print_table:
             self.table.add_row(
-                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
+                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {escape(self.conc_b_path)}",
                 key,
                 value,
                 style="red",
@@ -132,9 +137,10 @@ class FrappeDiff:
             )
 
     def grn_kvp(self, key: str, value: str, tree: Tree) -> None:
+        key, value = escape(key), escape(value)
         if self.print_table:
             self.table.add_row(
-                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
+                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {escape(self.conc_h_path)}",
                 key,
                 value,
                 style="green",
@@ -145,15 +151,16 @@ class FrappeDiff:
             )
 
     def mod_kvp(self, key: str, b_val: str, h_val: str, tree: Tree) -> None:
+        key, b_val, h_val = escape(key), escape(b_val), escape(h_val)
         if self.print_table:
             self.table.add_row(
-                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {self.conc_b_path}",
+                f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {escape(self.conc_b_path)}",
                 f"[default]{key}[/default]",
                 b_val,
                 style="red",
             )
             self.table.add_row(
-                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {self.conc_h_path}",
+                f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {escape(self.conc_h_path)}",
                 f"[default]{key}[/default]",
                 h_val,
                 style="green",
@@ -174,7 +181,7 @@ class FrappeDiff:
         h_path: str = "",
     ) -> Tree:
 
-        list_tree = Tree(name)
+        list_tree = Tree(escape(name))
 
         if all(type(d) is dict for d in base_list + head_list):
             if common_key := self.get_common_key(name, base_list, head_list):
@@ -312,17 +319,22 @@ class FrappeDiff:
         return next((key for key in usable if key in known), None)
 
     def red_elem(self, elem: str, path: str, tree: Tree) -> None:
+        elem = escape(elem)
         if self.print_table:
             self.table.add_row(
-                f"[bold]- {self.base_ln.val(path)}[/bold] {path}", elem, "", style="red"
+                f"[bold]- {self.base_ln.val(path)}[/bold] {escape(path)}",
+                elem,
+                "",
+                style="red",
             )
         else:
             tree.add(f"[red][bold]- {self.base_ln.val(path)}[/bold] {elem}[/red]")
 
     def grn_elem(self, elem: str, path: str, tree: Tree) -> None:
+        elem = escape(elem)
         if self.print_table:
             self.table.add_row(
-                f"[bold]+ {self.head_ln.val(path)}[/bold] {path}",
+                f"[bold]+ {self.head_ln.val(path)}[/bold] {escape(path)}",
                 elem,
                 "",
                 style="green",
@@ -331,9 +343,10 @@ class FrappeDiff:
             tree.add(f"[green][bold]+ {self.head_ln.val(path)}[/bold] {elem}[/green]")
 
     def red_dict(self, bdict: dict, path: str, tree: Tree, label: str) -> None:
+        label = escape(label)
         if self.print_table:
             self.table.add_row(
-                f"[bold]- {self.base_ln.val(path)}[/bold] {path}",
+                f"[bold]- {self.base_ln.val(path)}[/bold] {escape(path)}",
                 label,
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="red",
@@ -341,8 +354,8 @@ class FrappeDiff:
             for k, v in bdict.items():
                 self.table.add_row(
                     f"[bold magenta]In Dict:[/bold magenta] {label}",
-                    k,
-                    f"{v}",
+                    escape(k),
+                    escape(f"{v}"),
                     style="red",
                 )
         else:
@@ -350,12 +363,13 @@ class FrappeDiff:
                 f"[red][bold]- {self.base_ln.val(path)}[/bold] {label}[/red]"
             )
             for k, v in bdict.items():
-                dict_tree.add(f"[red]- {k} : {v}[/red]")
+                dict_tree.add(f"[red]- {escape(k)} : {escape(f'{v}')}[/red]")
 
     def grn_dict(self, hdict: dict, path: str, tree: Tree, label: str) -> None:
+        label = escape(label)
         if self.print_table:
             self.table.add_row(
-                f"[bold]+ {self.head_ln.val(path)}[/bold] {path}",
+                f"[bold]+ {self.head_ln.val(path)}[/bold] {escape(path)}",
                 label,
                 "[bold magenta]VALUES BELOW[/bold magenta]",
                 style="green",
@@ -363,8 +377,8 @@ class FrappeDiff:
             for k, v in hdict.items():
                 self.table.add_row(
                     f"[bold magenta]In Dict:[/bold magenta] {label}",
-                    k,
-                    f"{v}",
+                    escape(k),
+                    escape(f"{v}"),
                     style="green",
                 )
         else:
@@ -372,7 +386,7 @@ class FrappeDiff:
                 f"[green][bold]+ {self.head_ln.val(path)}[/bold] {label}[/green]"
             )
             for k, v in hdict.items():
-                dict_tree.add(f"[green]+ {k} : {v}[/green]")
+                dict_tree.add(f"[green]+ {escape(k)} : {escape(f'{v}')}[/green]")
 
 
 @dataclass
@@ -503,7 +517,9 @@ if __name__ == "__main__":
 
     if old_path.rsplit(".", maxsplit=1)[-1] == "json":
         if new_hex == ".":
-            console.log(f"[bold][red]Removed: {old_path.split('/')[-1]}[/red][/bold]")
+            console.log(
+                f"[bold][red]Removed: {escape(old_path.split('/')[-1])}[/red][/bold]"
+            )
         else:
             if "custom" in new_path:
                 console.log(f"[bold][magenta]Custom File:[/magenta][/bold]")

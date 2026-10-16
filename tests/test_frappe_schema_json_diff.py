@@ -220,5 +220,20 @@ class TestCommonKey(unittest.TestCase):
         self.assertIn("Delivery Note / test_doc", out)
 
 
+class TestMarkup(unittest.TestCase):
+    def test_brackets_in_data_print_as_written(self):
+        field = {"fieldname": "qty", "depends_on": "eval:doc.items[i]"}
+        base = doctype(fields=[field])
+        head = doctype(
+            fields=[{**field, "depends_on": "eval:doc.items[/x]"}],
+            links=[{"link_doctype": "[bold]Note", "link_fieldname": "x"}],
+        )
+        for table_mode in (0, 1):
+            out = fsjd(base, head, table_mode=table_mode)
+            self.assertIn("eval:doc.items[i]", out)
+            self.assertIn("eval:doc.items[/x]", out)
+            self.assertIn("[bold]Note", out)
+
+
 if __name__ == "__main__":
     unittest.main()
