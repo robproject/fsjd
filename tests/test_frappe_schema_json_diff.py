@@ -332,6 +332,65 @@ class TestJsonInString(unittest.TestCase):
         self.assertIn("description : 10 => 11", out)
         self.assertIn("label : Qty [i] => Qty [j]", out)
 
+    def test_field_order_repeat_removed_falls_back(self):
+        out = fsjd(field_order(["a", "a", "b"]), field_order(["a", "b"]))
+        self.assertIn('value : ["a", "a", "b"] => ["a", "b"]', out)
+
+    def test_field_order_move_with_rename(self):
+        out = fsjd(
+            field_order(["a", "x", "b_old", "c"]), field_order(["a", "b_new", "c", "x"])
+        )
+        self.assertRegex(out, r"- \d+ b_old\s+.*\+ \d+ b_new")
+        self.assertIn("order changed", out)
+        hunk = out.split("order changed")[1]
+        for line in ("- b_old", "+ b_new"):
+            self.assertIn(line, hunk)
+        self.assertRegex(hunk, r"[-+] (c|x)\s")
+
+    def test_value_type_is_not_formatting(self):
+        base = {"doctype": "Number Card", "filters_json": '{"docstatus": 1}'}
+        out = fsjd(base, {**base, "filters_json": '{"docstatus": true}'})
+        self.assertNotIn("formatting only", out)
+        # 1 == True to the paired diff, so this falls back to both values
+        self.assertIn('filters_json : {"docstatus": 1} => {"docstatus": true}', out)
+
+    def test_json_in_table_mode(self):
+        out = fsjd(
+            field_order(["a", "b_old"]), field_order(["a", "b_new"]), table_mode=1
+        )
+        self.assertIn("b_old", out)
+        self.assertIn("b_new", out)
+        self.assertNotIn('"a"', out)
+
+
+class TestWhitespace(unittest.TestCase):
+    def test_python_dedent_counts(self):
+        base = {"doctype": "Server Script", "script": "if x:\n    a()\n    b()"}
+        out = fsjd(base, {**base, "script": "if x:\n    a()\nb()"})
+        self.assertNotIn("whitespace only", out)
+        self.assertRegex(out, r"-     b\(\)\s+.*\+ b\(\)")
+
+    def test_spaces_inside_a_line_count(self):
+        out = fsjd(
+            print_format("<p>a b</p>\n<p>c</p>"), print_format("<p>a   b</p>\n<p>c</p>")
+        )
+        self.assertRegex(out, r"- <p>a b</p>\s+.*\+ <p>a   b</p>")
+
+    def test_hunk_header_counts_blank_lines(self):
+        out = fsjd(print_format("a\nb\n\n\nc\nd\ne"), print_format("a\nb\nc\nD\ne"))
+        self.assertIn("@@ -1,7 +1,5 @@", out)
+        self.assertEqual(len(re.findall(r"^[\s│├└─]*- ", out, re.M)), 3, out)
+        self.assertEqual(len(re.findall(r"^[\s│├└─]*\+ ", out, re.M)), 1, out)
+
+    def test_blank_lines_alone_make_no_hunk(self):
+        out = fsjd(print_format("a\nb\nc"), print_format("a\n\nb\nc\n\n"))
+        self.assertIn("whitespace only", out)
+
+    def test_context_lines_are_the_new_version(self):
+        base = print_format("keep\nold\nend")
+        out = fsjd(base, print_format("\u00a0keep\nnew\nend"))
+        self.assertIn("\u00a0keep", out)
+
 
 if __name__ == "__main__":
     unittest.main()
