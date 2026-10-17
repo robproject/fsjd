@@ -15,13 +15,23 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent / "frappe_schema_json_diff.py"
 
 
-def fsjd(base, head, table_mode=0) -> str:
+ABSENT = object()  # the side of an added or deleted file that git gives as /dev/null
+
+
+def fsjd(base, head, table_mode=0, renamed_from="") -> str:
     with tempfile.TemporaryDirectory() as tmp:
         old, new = Path(tmp, "old_doc.json"), Path(tmp, "doc.json")
-        old.write_text(json.dumps(base, indent=1))
-        new.write_text(json.dumps(head, indent=1))
-        # path old-file old-hex old-mode new-file new-hex new-mode
+        # path old-file old-hex old-mode new-file new-hex new-mode [new-path xfrm-msg]
         args = ["doc.json", old, "1" * 40, "100644", new, "2" * 40, "100644"]
+        if renamed_from:
+            args = [renamed_from, *args[1:], "doc.json", "similarity index 90%"]
+        for i, (side, value) in ((1, (old, base)), (4, (new, head))):
+            if value is ABSENT:
+                args[i : i + 3] = [os.devnull, ".", "."]
+            else:
+                side.write_text(
+                    value if type(value) is str else json.dumps(value, indent=1)
+                )
         result = subprocess.run(
             [sys.executable, SCRIPT, *map(str, args)],
             capture_output=True,
@@ -34,6 +44,33 @@ def fsjd(base, head, table_mode=0) -> str:
 
 def doctype(**kwargs) -> dict:
     return {"doctype": "DocType", "name": "Test Doc", "fields": [], **kwargs}
+
+
+def line_of(obj, text: str) -> int:
+    # 1-based line of text in obj written as the tests write files
+    return json.dumps(obj, indent=1).splitlines().index(text) + 1
+
+
+class TestLineNumbers(unittest.TestCase):
+    def test_lines_are_the_files_own(self):
+        base = doctype(
+            module="Stock", fields=[{"fieldname": "qty", "fieldtype": "Int"}]
+        )
+        head = doctype(
+            module="Selling",
+            fields=[{"fieldname": "qty", "fieldtype": "Float"}],
+            issingle=1,
+        )
+        b_type = line_of(base, '   "fieldtype": "Int"')
+        h_type = line_of(head, '   "fieldtype": "Float"')
+        b_module = line_of(base, ' "module": "Stock"')
+        h_module = line_of(head, ' "module": "Selling",')
+        h_single = line_of(head, ' "issingle": 1')
+        out = fsjd(base, head)
+        self.assertIn(f"{b_type} => {h_type} fieldtype : Int => Float", out)
+        self.assertIn(f"{b_module} => {h_module} module : Stock => Selling", out)
+        self.assertIn(f"+ {h_single} issingle : 1", out)
+        self.assertIn(f"+ {h_single} issingle : 1", fsjd(ABSENT, head))
 
 
 class TestCommonKey(unittest.TestCase):
@@ -332,9 +369,10 @@ class TestJsonInString(unittest.TestCase):
         self.assertIn("description : 10 => 11", out)
         self.assertIn("label : Qty [i] => Qty [j]", out)
 
-    def test_field_order_repeat_removed_falls_back(self):
+    def test_field_order_repeat_removed(self):
         out = fsjd(field_order(["a", "a", "b"]), field_order(["a", "b"]))
-        self.assertIn('value : ["a", "a", "b"] => ["a", "b"]', out)
+        self.assertEqual(len(re.findall(r"- \d+ a\s", out)), 1, out)
+        self.assertNotIn("=>", out)
 
     def test_field_order_move_with_rename(self):
         out = fsjd(
@@ -390,6 +428,138 @@ class TestWhitespace(unittest.TestCase):
         base = print_format("keep\nold\nend")
         out = fsjd(base, print_format("\u00a0keep\nnew\nend"))
         self.assertIn("\u00a0keep", out)
+
+
+class TestAddedDeleted(unittest.TestCase):
+    new_doctype = doctype(
+        module="Stock",
+        field_order=["qty", "notes"],
+        fields=[
+            {"fieldname": "qty", "fieldtype": "Float"},
+            {"fieldname": "notes", "fieldtype": "Text", "default": "line 1\nline [2]"},
+        ],
+        permissions=[{"role": "System Manager", "read": 1}],
+    )
+
+    def test_added_file_shows_its_contents(self):
+        out = fsjd(ABSENT, self.new_doctype)
+        self.assertIn("Added: doc.json", out)
+        self.assertRegex(out, r"fields\s+.*\+ \d+ qty\s+.*\+ fieldname : qty")
+        self.assertRegex(out, r"\+ \d+ System Manager")
+        self.assertRegex(out, r"\+ \d+ notes\s")  # field_order
+        self.assertRegex(out, r"\+ \d+ module : Stock")
+        self.assertNotIn("- ", out)
+
+    def test_deleted_file_shows_its_contents(self):
+        out = fsjd(self.new_doctype, ABSENT)
+        self.assertIn("Removed: doc.json", out)
+        self.assertRegex(out, r"- \d+ qty\s+.*- fieldname : qty")
+        self.assertRegex(out, r"- \d+ module : Stock")
+        self.assertNotIn("+ ", out)
+
+    def test_multi_line_values_are_marked_line_by_line(self):
+        out = fsjd(self.new_doctype, ABSENT)
+        self.assertRegex(out, r"- default\s+.*- line 1\s+.*- line \[2\]")
+        html = "<div>\n  {{ doc.name }}\n</div>"
+        out = fsjd(ABSENT, print_format(html))
+        self.assertRegex(out, r"\+ \d+ html\s+.*@@ -0,0 \+1,3 @@\s+.*\+ <div>")
+
+    def test_deleted_print_format_layout(self):
+        layout = [
+            {
+                "fieldname": "heading",
+                "fieldtype": "Custom HTML",
+                "options": "<h1>\n{{ doc.name }}\n</h1>",
+            },
+            {"fieldtype": "Section Break"},
+        ]
+        out = fsjd(
+            {"doctype": "Print Format", "format_data": json.dumps(layout)}, ABSENT
+        )
+        self.assertRegex(
+            out, r"format_data\s+.*- \d+ Custom HTML\s+.*- fieldname : heading"
+        )
+        self.assertRegex(out, r"- options\s+.*- <h1>\s+.*- \{\{ doc.name \}\}")
+        self.assertRegex(out, r"- \d+ Section Break")
+
+    def test_added_fixture_list(self):
+        out = fsjd(ABSENT, [{"doctype": "Role", "name": "Packer", "desk_access": 1}])
+        self.assertRegex(out, r"(?s)\+ \d+ Packer\s.*\+ desk_access : 1")
+
+    def test_table_mode(self):
+        out = fsjd(ABSENT, self.new_doctype, table_mode=1)
+        self.assertIn("Added: doc.json", out)
+        self.assertIn("System Manager", out)
+        self.assertIn("line [2]", out)
+
+    def test_renamed_file(self):
+        base = doctype(module="Stock")
+        out = fsjd(base, {**base, "module": "Selling"}, renamed_from="dir/old_doc.json")
+        self.assertIn("Renamed: old_doc.json → doc.json", out)
+        self.assertRegex(
+            out, r"(?m)^doc\.json"
+        )  # the tree is labelled with the new name
+        self.assertIn("module : Stock => Selling", out)
+
+    def test_added_file_that_is_not_json(self):
+        out = fsjd(ABSENT, "{ not json")
+        self.assertIn("doc.json can't be shown: JSONDecodeError", out)
+
+    def test_modified_file_that_is_not_json_still_fails(self):
+        with self.assertRaises(AssertionError):
+            fsjd(self.new_doctype, "{ not json")
+
+    def test_renamed_from_another_type(self):
+        out = fsjd("var x = 1;", {"a": 1}, renamed_from="public/conf.js")
+        self.assertIn("Renamed: conf.js → doc.json", out)
+        self.assertIn("can't be shown: JSONDecodeError", out)
+
+    def test_file_that_is_a_scalar(self):
+        self.assertRegex(fsjd(ABSENT, 42), r"\+ 42\s")
+        self.assertRegex(fsjd(None, ABSENT), r"- None\s")
+        self.assertIn("1 => 2", fsjd(1, 2))
+
+    def test_empty_values_are_shown(self):
+        head = doctype(
+            permissions=[], links=[], filters_json="[]", spaced="[ ]", meta={}
+        )
+        out = fsjd(ABSENT, head)
+        for key, value in [
+            ("permissions", "[]"),
+            ("links", "[]"),
+            ("filters_json", "[]"),
+            ("spaced", "[ ]"),
+            ("meta", "{}"),
+        ]:
+            self.assertRegex(out, rf"\+ \d+ {key} : {re.escape(value)}\s")
+        self.assertNotIn("formatting only", out)
+
+    def test_repeated_list_items(self):
+        out = fsjd(ABSENT, doctype(field_order=["a", "a", "b"]))
+        self.assertEqual(len(re.findall(r"\+ \d+ a\s", out)), 2, out)
+        out = fsjd(
+            doctype(field_order=["a", "a", "b"]), doctype(field_order=["a", "b"])
+        )
+        self.assertEqual(len(re.findall(r"- \d+ a\s", out)), 1, out)
+
+    def test_added_file_prints_in_file_order(self):
+        out = fsjd(ABSENT, self.new_doctype)
+        top = re.findall(r"^[├└]── (?:\+ \d+ )?(\w+)", out, re.M)
+        self.assertEqual(top, list(self.new_doctype), out)
+
+    def test_escaped_key_lines(self):
+        base, head = {"doctype": "DocType", "café": 1}, {
+            "doctype": "DocType",
+            "café": 2,
+        }
+        line = line_of(base, ' "caf\\u00e9": 1')
+        self.assertIn(f"{line} => {line} café : 1 => 2", fsjd(base, head))
+
+    def test_multi_line_value_added_or_removed_in_a_modified_file(self):
+        out = fsjd(doctype(), doctype(description="a\nline [2]"))
+        self.assertRegex(out, r"\+ \d+ description\s+.*\+ a\s+.*\+ line \[2\]")
+        out = fsjd(doctype(description="a\nline [2]"), doctype(), table_mode=1)
+        self.assertRegex(out, r"(?s)- a\s.*- line \[2\]")
 
 
 if __name__ == "__main__":

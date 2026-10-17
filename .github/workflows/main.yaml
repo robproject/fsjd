@@ -51,10 +51,19 @@ jobs:
               return;
             }
 
+            // GitHub refuses a comment over 65536 characters: post the start, and point to the log.
+            const limit = 60000;
+            let body = output;
+            if (body.length > limit) {
+              const log = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+              body = body.slice(0, Math.max(body.lastIndexOf("\n", limit), 0)) +
+                `\n</pre>\n\nThe diff is cut short here: the whole of it is in the [job log](${log}).`;
+            }
+
             const issue_number = context.issue.number;
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
-              body: output,
+              body: body,
             });
