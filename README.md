@@ -57,5 +57,7 @@ Runner terminals will show JSON file names and diff content for any modified fil
 1. Change or delete any json files located in `/test_files`
 2. `bash ./run.sh`
 
+Unit tests run the script the way git does: `python3 -m unittest discover -s tests`
+
 ### Function
 A specific situation this tool is designed to account for is the deletion or reordering of elements in a list of dictionaries. If docfields (dictionaries) are added, deleted, or have their order changed, tools like DeepDiff will compare elements of the same index. FSJD will compare members of dictionary lists with matching common-key values. For example, docfields share the common-key 'field_name', so if two lists to be diffed contain dictionaries with this common-key, and their values match, those two dictionaries will be compared regardless of index. The tradeoff to this approach is that renaming a docfield (changing only the value of a common-key) will show a deleted and added docfield instead of a renamed value.
