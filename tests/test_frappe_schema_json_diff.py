@@ -450,21 +450,30 @@ class TestAddedDeleted(unittest.TestCase):
         self.assertRegex(out, r"\+ \d+ module : Stock")
         self.assertNotIn("- ", out)
 
-    def test_deleted_file_shows_its_contents(self):
-        out = fsjd(self.new_doctype, ABSENT)
-        self.assertIn("Removed: doc.json", out)
-        self.assertRegex(out, r"- \d+ qty\s+.*- fieldname : qty")
-        self.assertRegex(out, r"- \d+ module : Stock")
-        self.assertNotIn("+ ", out)
+    def test_deleted_document_shows_its_name(self):
+        for table_mode in (0, 1):
+            out = fsjd(self.new_doctype, ABSENT, table_mode=table_mode)
+            self.assertIn("Removed: doc.json", out)
+            self.assertRegex(out, r"- 1\s+(│ )?DocType: Test Doc")
+            for content in ("qty", "Stock", "System Manager", "+ "):
+                self.assertNotIn(content, out)
+
+    def test_deleted_customizations(self):
+        custom = {
+            "doctype": "Item",
+            "custom_fields": [{"fieldname": "x"}],
+            "property_setters": [],
+        }
+        self.assertRegex(fsjd(custom, ABSENT), r"- 1 Customizations: Item")
 
     def test_multi_line_values_are_marked_line_by_line(self):
-        out = fsjd(self.new_doctype, ABSENT)
-        self.assertRegex(out, r"- default\s+.*- line 1\s+.*- line \[2\]")
+        out = fsjd(ABSENT, self.new_doctype)
+        self.assertRegex(out, r"\+ default\s+.*\+ line 1\s+.*\+ line \[2\]")
         html = "<div>\n  {{ doc.name }}\n</div>"
         out = fsjd(ABSENT, print_format(html))
         self.assertRegex(out, r"\+ \d+ html\s+.*@@ -0,0 \+1,3 @@\s+.*\+ <div>")
 
-    def test_deleted_print_format_layout(self):
+    def test_added_print_format_layout(self):
         layout = [
             {
                 "fieldname": "heading",
@@ -474,17 +483,48 @@ class TestAddedDeleted(unittest.TestCase):
             {"fieldtype": "Section Break"},
         ]
         out = fsjd(
-            {"doctype": "Print Format", "format_data": json.dumps(layout)}, ABSENT
+            ABSENT, {"doctype": "Print Format", "format_data": json.dumps(layout)}
         )
         self.assertRegex(
-            out, r"format_data\s+.*- \d+ Custom HTML\s+.*- fieldname : heading"
+            out, r"format_data\s+.*\+ \d+ Custom HTML\s+.*\+ fieldname : heading"
         )
-        self.assertRegex(out, r"- options\s+.*- <h1>\s+.*- \{\{ doc.name \}\}")
-        self.assertRegex(out, r"- \d+ Section Break")
+        self.assertRegex(out, r"\+ options\s+.*\+ <h1>\s+.*\+ \{\{ doc.name \}\}")
+        self.assertRegex(out, r"\+ \d+ Section Break")
 
-    def test_added_fixture_list(self):
-        out = fsjd(ABSENT, [{"doctype": "Role", "name": "Packer", "desk_access": 1}])
-        self.assertRegex(out, r"(?s)\+ \d+ Packer\s.*\+ desk_access : 1")
+    def test_fixtures_list_their_records(self):
+        roles = [
+            {"doctype": "Role", "name": "Packer", "desk_access": 1},
+            {"doctype": "Workspace", "title": "Shipping", "content": "[]"},
+            {"doctype": "Item"},
+            {
+                "doctype": "Workspace Link",
+                "name": "vc5r",
+                "parent": "CRM",
+                "label": "Reports",
+            },
+        ]
+        for sign, base, head in (("+", ABSENT, roles), ("-", roles, ABSENT)):
+            out = fsjd(base, head)
+            for title in (
+                "Role: Packer",
+                "Workspace: Shipping",
+                "Item: (no name)",
+                "Workspace Link in CRM: Reports",
+            ):
+                self.assertRegex(out, rf"{re.escape(sign)} \d+ {re.escape(title)}\s")
+            self.assertNotIn("desk_access", out)
+        out = fsjd(ABSENT, roles, table_mode=1)
+        self.assertIn("Role: Packer", out)
+        self.assertNotIn("desk_access", out)
+
+    def test_other_json_shows_its_size(self):
+        chart = {"Assets": {"Current": {"Cash": {"account_type": "Cash"}}}}
+        for sign, base, head in (("+", ABSENT, chart), ("-", chart, ABSENT)):
+            out = fsjd(base, head)
+            lines = len(json.dumps(chart, indent=1).splitlines())
+            self.assertIn(f"{sign} {lines} lines, not a Frappe document", out)
+            self.assertNotIn("Cash", out)
+        self.assertIn("+ 1 line, not a Frappe document", fsjd(ABSENT, 42))
 
     def test_table_mode(self):
         out = fsjd(ABSENT, self.new_doctype, table_mode=1)
@@ -515,9 +555,8 @@ class TestAddedDeleted(unittest.TestCase):
         self.assertIn("can't be shown: JSONDecodeError", out)
 
     def test_file_that_is_a_scalar(self):
-        self.assertRegex(fsjd(ABSENT, 42), r"\+ 42\s")
-        self.assertRegex(fsjd(None, ABSENT), r"- None\s")
         self.assertIn("1 => 2", fsjd(1, 2))
+        self.assertIn("- 1 line, not a Frappe document", fsjd(None, ABSENT))
 
     def test_empty_values_are_shown(self):
         head = doctype(
