@@ -12,6 +12,7 @@ from json_source_map import calculate
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
+from rich.text import Text
 from rich.tree import Tree
 
 
@@ -112,6 +113,8 @@ class FrappeDiff:
                         )
                         if rtree.children:
                             dict_tree.add(rtree)
+                    elif is_text(bk_v, hk_v):
+                        self.text_diff(bk, bk_v or "", hk_v or "", dict_tree)
                     else:
                         self.mod_kvp(bk, f"{bk_v}", f"{hk_v}", dict_tree)
             else:
@@ -171,6 +174,26 @@ class FrappeDiff:
                 f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
                 f" {key} : [red]{b_val}[/red] => [green]{h_val}[/green]"
             )
+
+    def text_diff(self, key: str, b_val: str, h_val: str, tree: Tree) -> None:
+        # Multi-line values (HTML, Jinja, CSS, SQL, scripts, ZPL): show the changed lines in
+        # context instead of both whole values. Their line numbers are within the value.
+        hunks = text_hunks(b_val, h_val) or [Text("whitespace only", style="dim")]
+        lines = (
+            f"[bold red]{self.base_ln.key(self.conc_b_path)}[/bold red] => "
+            f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
+        )
+        if self.print_table:
+            for hunk in hunks:
+                self.table.add_row(
+                    f"{lines} {escape(self.conc_h_path)}",
+                    f"[default]{escape(key)}[/default]",
+                    hunk,
+                )
+        else:
+            key_tree = tree.add(f"{lines} {escape(key)}")
+            for hunk in hunks:
+                key_tree.add(hunk)
 
     def list_diff(
         self,
@@ -494,6 +517,56 @@ def json_lists(*texts: str) -> "Optional[tuple[list, ...]]":
     except (TypeError, ValueError):
         return None
     return values if all(type(v) is list for v in values) else None
+
+
+def is_text(*values) -> bool:
+    # Strings or nothing, at least one of them over several lines.
+    return all(v is None or type(v) is str for v in values) and any(
+        type(v) is str and "\n" in v for v in values
+    )
+
+
+def text_hunks(b_text: str, h_text: str, context: int = 2) -> "list[Text]":
+    # Whitespace doesn't count: lines that differ only in it (a re-indent) match, and
+    # added or removed blank lines show only as context.
+    b_lines, h_lines = b_text.splitlines(), h_text.splitlines()
+    matcher = difflib.SequenceMatcher(
+        None,
+        [" ".join(line.split()) for line in b_lines],
+        [" ".join(line.split()) for line in h_lines],
+        autojunk=False,
+    )
+
+    def unchanged(tag, a1, a2, c1, c2) -> bool:
+        return tag == "equal" or not "".join(b_lines[a1:a2] + h_lines[c1:c2]).strip()
+
+    hunks = []
+    for group in matcher.get_grouped_opcodes(context):
+        if all(unchanged(*op) for op in group):
+            continue
+        i1, i2, j1, j2 = group[0][1], group[-1][2], group[0][3], group[-1][4]
+        hunk = Text(
+            f"@@ -{hunk_range(i1, i2)} +{hunk_range(j1, j2)} @@",
+            style="cyan",
+            tab_size=4,
+        )
+        for tag, a1, a2, c1, c2 in group:
+            if unchanged(tag, a1, a2, c1, c2):
+                for line in h_lines[c1:c2]:
+                    hunk.append(f"\n  {line}", style="dim")
+                continue
+            for line in b_lines[a1:a2]:
+                hunk.append(f"\n- {line}", style="red")
+            for line in h_lines[c1:c2]:
+                hunk.append(f"\n+ {line}", style="green")
+        hunks.append(hunk)
+    return hunks
+
+
+def hunk_range(start: int, stop: int) -> str:
+    # As in a unified diff: 1-based, and an empty range is placed after the line before it.
+    length = stop - start
+    return f"{start + 1 if length else start},{length}"
 
 
 def is_json(text):

@@ -235,5 +235,64 @@ class TestMarkup(unittest.TestCase):
             self.assertIn("[bold]Note", out)
 
 
+def lines(n: int, fmt: str = "<td>{{{{ row.col_{} }}}}</td>") -> "list[str]":
+    return [fmt.format(i) for i in range(n)]
+
+
+def print_format(html: str) -> dict:
+    return {"doctype": "Print Format", "name": "Test PF", "html": html}
+
+
+class TestText(unittest.TestCase):
+    def test_changed_lines_in_context(self):
+        base = lines(40)
+        head = [*base[:20], "<td>{{ row.total[i] }}</td>", *base[21:]]
+        out = fsjd(print_format("\n".join(base)), print_format("\n".join(head)))
+        self.assertRegex(out, r"html\s+.*@@ -19,5 \+19,5 @@")
+        self.assertRegex(
+            out,
+            r"- <td>\{\{ row.col_20 \}\}</td>\s+.*\+ <td>\{\{ row.total\[i\] \}\}</td>",
+        )
+        self.assertIn("row.col_18", out)  # context
+        self.assertNotIn("row.col_17", out)
+        self.assertNotIn("row.col_23", out)
+
+    def test_whitespace_only(self):
+        base = lines(5)
+        head = ["", *("    " + line for line in base), "   "]
+        out = fsjd(print_format("\n".join(base)), print_format("\n".join(head)))
+        self.assertIn("whitespace only", out)
+        self.assertNotIn("row.col_", out)
+
+    def test_reindent_shows_only_real_changes(self):
+        base = lines(30)
+        head = (
+            ["\t" + line for line in base[:10]]
+            + ["\t<td>new</td>"]
+            + ["\t" + line for line in base[10:]]
+        )
+        out = fsjd(print_format("\n".join(base)), print_format("\n".join(head)))
+        self.assertRegex(out, r"\+\s+<td>new</td>")
+        self.assertEqual(len(re.findall(r"^\W*[-+] ", out, re.M)), 1, out)
+
+    def test_script_added_to_empty_value(self):
+        base = {"doctype": "Server Script", "name": "S", "script": None}
+        out = fsjd(base, {**base, "script": "x = 1\nif x:\n    frappe.throw('[/x]')"})
+        self.assertRegex(out, r"@@ -0,0 \+1,3 @@")
+        self.assertIn("+     frappe.throw('[/x]')", out)
+
+    def test_table_mode(self):
+        base = lines(10, "SELECT col_{}")
+        head = [*base[:5], "SELECT changed", *base[6:]]
+        out = fsjd(
+            {"doctype": "Report", "query": "\n".join(base)},
+            {"doctype": "Report", "query": "\n".join(head)},
+            table_mode=1,
+        )
+        self.assertIn("SELECT changed", out)
+        self.assertIn("query", out)
+        self.assertNotIn("col_0", out)
+
+
 if __name__ == "__main__":
     unittest.main()
