@@ -496,7 +496,8 @@ def Entry(**kwargs: str) -> dict:
 
 
 def Location(**kwargs: str) -> int:
-    return kwargs["line"]
+    # json_source_map counts lines from 0
+    return kwargs["line"] + 1
 
 
 # gets symmetric difference while maintaining original group membership

@@ -46,6 +46,33 @@ def doctype(**kwargs) -> dict:
     return {"doctype": "DocType", "name": "Test Doc", "fields": [], **kwargs}
 
 
+def line_of(obj, text: str) -> int:
+    # 1-based line of text in obj written as the tests write files
+    return json.dumps(obj, indent=1).splitlines().index(text) + 1
+
+
+class TestLineNumbers(unittest.TestCase):
+    def test_lines_are_the_files_own(self):
+        base = doctype(
+            module="Stock", fields=[{"fieldname": "qty", "fieldtype": "Int"}]
+        )
+        head = doctype(
+            module="Selling",
+            fields=[{"fieldname": "qty", "fieldtype": "Float"}],
+            issingle=1,
+        )
+        b_type = line_of(base, '   "fieldtype": "Int"')
+        h_type = line_of(head, '   "fieldtype": "Float"')
+        b_module = line_of(base, ' "module": "Stock"')
+        h_module = line_of(head, ' "module": "Selling",')
+        h_single = line_of(head, ' "issingle": 1')
+        out = fsjd(base, head)
+        self.assertIn(f"{b_type} => {h_type} fieldtype : Int => Float", out)
+        self.assertIn(f"{b_module} => {h_module} module : Stock => Selling", out)
+        self.assertIn(f"+ {h_single} issingle : 1", out)
+        self.assertIn(f"+ {h_single} issingle : 1", fsjd(ABSENT, head))
+
+
 class TestCommonKey(unittest.TestCase):
     def test_doctype_links(self):
         # Document links have no link_to, and one link_doctype can appear twice.
