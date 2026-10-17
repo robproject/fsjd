@@ -21,10 +21,23 @@ class FrappeDiff:
     old_path: str
     new_path: str
     print_table: int = 0
+    name: str = ""
 
     def prep(self) -> None:
-        self.base_obj, self.base_ln = self.get_file(self.old_path)
-        self.head_obj, self.head_ln = self.get_file(self.new_path)
+        # An added or deleted file is diffed against a hollow copy of itself (see hollow),
+        # so its contents show as added or removed.
+        self.only = ""
+        if self.old_path == os.devnull:
+            self.only = "+"
+            self.head_obj, self.head_ln = self.get_file(self.new_path)
+            self.base_obj, self.base_ln = hollow_file(self.head_obj)
+        elif self.new_path == os.devnull:
+            self.only = "-"
+            self.base_obj, self.base_ln = self.get_file(self.old_path)
+            self.head_obj, self.head_ln = hollow_file(self.base_obj)
+        else:
+            self.base_obj, self.base_ln = self.get_file(self.old_path)
+            self.head_obj, self.head_ln = self.get_file(self.new_path)
         self.make_label()
         if self.print_table:
             self.prep_table()
@@ -37,7 +50,7 @@ class FrappeDiff:
             return json.loads(json_str), LineNos(json_str)
 
     def make_label(self) -> None:
-        self.name = self.new_path.split("/")[-1]
+        self.name = self.name or self.new_path.split("/")[-1]
         self.label = f"[bold]{escape(self.name)}[/bold]"
 
     def prep_table(self) -> None:
@@ -149,28 +162,38 @@ class FrappeDiff:
         return dict_tree
 
     def red_kvp(self, key: str, value: str, tree: Tree) -> None:
+        text = side_text("-", value) if "\n" in value else None
         key, value = escape(key), escape(value)
         if self.print_table:
             self.table.add_row(
                 f"[bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {escape(self.conc_b_path)}",
                 key,
-                value,
+                text or value,
                 style="red",
             )
+        elif text:
+            tree.add(
+                f"[red][bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {key}[/red]"
+            ).add(text)
         else:
             tree.add(
                 f"[red][bold]- {self.base_ln.key(self.conc_b_path)}[/bold] {key} : {value}[/red]"
             )
 
     def grn_kvp(self, key: str, value: str, tree: Tree) -> None:
+        text = side_text("+", value) if "\n" in value else None
         key, value = escape(key), escape(value)
         if self.print_table:
             self.table.add_row(
                 f"[bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {escape(self.conc_h_path)}",
                 key,
-                value,
+                text or value,
                 style="green",
             )
+        elif text:
+            tree.add(
+                f"[green][bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {key}[/green]"
+            ).add(text)
         else:
             tree.add(
                 f"[green][bold]+ {self.head_ln.key(self.conc_h_path)}[/bold] {key} : {value}[/green]"
@@ -201,10 +224,13 @@ class FrappeDiff:
     def hunk_kvp(self, key: str, hunks: "list[Text]", tree: Tree) -> None:
         # Changed lines of a multi-line value (HTML, Jinja, CSS, SQL, scripts, ZPL) in place
         # of both whole values; hunk line numbers are within the value.
-        lines = (
-            f"[bold red]{self.base_ln.key(self.conc_b_path)}[/bold red] => "
-            f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
-        )
+        b_line = f"[bold red]{self.base_ln.key(self.conc_b_path)}[/bold red]"
+        h_line = f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
+        # In an added or deleted file, only one side's line numbers are real.
+        lines = {
+            "+": f"[bold green]+[/bold green] {h_line}",
+            "-": f"[bold red]-[/bold red] {b_line}",
+        }.get(self.only, f"{b_line} => {h_line}")
         if self.print_table:
             for hunk in hunks:
                 self.table.add_row(
@@ -400,7 +426,7 @@ class FrappeDiff:
                 self.table.add_row(
                     f"[bold magenta]In Dict:[/bold magenta] {label}",
                     escape(k),
-                    escape(f"{v}"),
+                    side_text("-", v) if is_text(v) else escape(f"{v}"),
                     style="red",
                 )
         else:
@@ -408,7 +434,10 @@ class FrappeDiff:
                 f"[red][bold]- {self.base_ln.val(path)}[/bold] {label}[/red]"
             )
             for k, v in bdict.items():
-                dict_tree.add(f"[red]- {escape(k)} : {escape(f'{v}')}[/red]")
+                if is_text(v):
+                    dict_tree.add(f"[red]- {escape(k)}[/red]").add(side_text("-", v))
+                else:
+                    dict_tree.add(f"[red]- {escape(k)} : {escape(f'{v}')}[/red]")
 
     def grn_dict(self, hdict: dict, path: str, tree: Tree, label: str) -> None:
         label = escape(label)
@@ -423,7 +452,7 @@ class FrappeDiff:
                 self.table.add_row(
                     f"[bold magenta]In Dict:[/bold magenta] {label}",
                     escape(k),
-                    escape(f"{v}"),
+                    side_text("+", v) if is_text(v) else escape(f"{v}"),
                     style="green",
                 )
         else:
@@ -431,7 +460,12 @@ class FrappeDiff:
                 f"[green][bold]+ {self.head_ln.val(path)}[/bold] {label}[/green]"
             )
             for k, v in hdict.items():
-                dict_tree.add(f"[green]+ {escape(k)} : {escape(f'{v}')}[/green]")
+                if is_text(v):
+                    dict_tree.add(f"[green]+ {escape(k)}[/green]").add(
+                        side_text("+", v)
+                    )
+                else:
+                    dict_tree.add(f"[green]+ {escape(k)} : {escape(f'{v}')}[/green]")
 
 
 @dataclass
@@ -559,6 +593,27 @@ def depth(value) -> int:
     return deepest
 
 
+def hollow(value):
+    # The containers of a value with nothing in them and no scalars: diffed against it,
+    # every value shows as added (or removed). Text keeps an empty string, so it shows as
+    # lines, and JSON in a string an empty JSON container, so it shows as structure.
+    if type(value) is dict:
+        return {k: h for k, v in value.items() if (h := hollow(v)) is not None}
+    if type(value) is list:
+        return []
+    if parsed := json_values(value):
+        return "[]" if type(parsed[0]) is list else "{}"
+    if is_text(value):
+        return ""
+    return None
+
+
+def hollow_file(obj) -> "tuple":
+    shell = hollow(obj)
+    shell = obj if shell is None else shell
+    return shell, LineNos(json.dumps(shell, indent=1))
+
+
 def json_notes(b_val, h_val) -> "list[Text]":
     # What the paired diff of JSON values doesn't show. It pairs list items regardless of
     # order, but in e.g. field_order the order is the content.
@@ -639,6 +694,13 @@ def text_hunks(
     return hunks
 
 
+def side_text(sign: str, text: str) -> Text:
+    # A multi-line value only one side has: each line marked, as in a hunk.
+    style = "red" if sign == "-" else "green"
+    lines = (f"{sign} {line}" for line in text.splitlines())
+    return Text("\n".join(lines), style=style, tab_size=4)
+
+
 def hunk_range(start: int, stop: int) -> str:
     # As in a unified diff: 1-based, and an empty range is placed after the line before it.
     length = stop - start
@@ -658,21 +720,37 @@ if __name__ == "__main__":
     # https://github.com/azrafe7/test_python_rich_on_gh_pages/blob/0015be3b6b1925c4d4c9acbaed319666ff7cec89/main.py
     console = Console(force_terminal=True, width=150, log_time=False, log_path=False)
 
+    # path old-file old-hex old-mode new-file new-hex new-mode [new-path xfrm-msg]: an added
+    # or deleted file has /dev/null and "." on its missing side, and a renamed one gets
+    # its new path after them
+    path = sys.argv[1]
     old_path = sys.argv[2]
     old_hex = sys.argv[3]
     new_path = sys.argv[5]
     new_hex = sys.argv[6]
+    renamed_to = sys.argv[8] if len(sys.argv) > 8 else ""
     table_mode = int(os.getenv("TABLE_MODE"))
 
-    if old_path.rsplit(".", maxsplit=1)[-1] == "json":
+    if any(p.rsplit(".", maxsplit=1)[-1] == "json" for p in (path, renamed_to)):
+        name = (renamed_to or path).split("/")[-1]
+        one_sided = "." in (old_hex, new_hex)
         if new_hex == ".":
-            console.log(
-                f"[bold][red]Removed: {escape(old_path.split('/')[-1])}[/red][/bold]"
-            )
-        else:
-            if "custom" in new_path:
-                console.log(f"[bold][magenta]Custom File:[/magenta][/bold]")
-            diff = FrappeDiff(old_path, new_path, table_mode)
+            console.log(f"[bold][red]Removed: {escape(name)}[/red][/bold]")
+        elif old_hex == ".":
+            console.log(f"[bold][green]Added: {escape(name)}[/green][/bold]")
+        elif renamed_to:
+            old_name = escape(path.split("/")[-1])
+            console.log(f"[bold]Renamed: {old_name} → {escape(name)}[/bold]")
+        if "custom" in (old_path if new_hex == "." else new_path):
+            console.log(f"[bold][magenta]Custom File:[/magenta][/bold]")
+        diff = FrappeDiff(old_path, new_path, table_mode, name)
+        try:
             diff.prep()
+        except ValueError:
+            # Added and deleted files used to be skipped: don't fail on one that isn't JSON.
+            if not one_sided:
+                raise
+            console.log(f"{escape(name)} is not valid JSON")
+        else:
             diff.print()
         console.log()

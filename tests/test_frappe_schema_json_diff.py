@@ -15,13 +15,23 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent / "frappe_schema_json_diff.py"
 
 
-def fsjd(base, head, table_mode=0) -> str:
+ABSENT = object()  # the side of an added or deleted file that git gives as /dev/null
+
+
+def fsjd(base, head, table_mode=0, renamed_from="") -> str:
     with tempfile.TemporaryDirectory() as tmp:
         old, new = Path(tmp, "old_doc.json"), Path(tmp, "doc.json")
-        old.write_text(json.dumps(base, indent=1))
-        new.write_text(json.dumps(head, indent=1))
-        # path old-file old-hex old-mode new-file new-hex new-mode
+        # path old-file old-hex old-mode new-file new-hex new-mode [new-path xfrm-msg]
         args = ["doc.json", old, "1" * 40, "100644", new, "2" * 40, "100644"]
+        if renamed_from:
+            args = [renamed_from, *args[1:], "doc.json", "similarity index 90%"]
+        for i, (side, value) in ((1, (old, base)), (4, (new, head))):
+            if value is ABSENT:
+                args[i : i + 3] = [os.devnull, ".", "."]
+            else:
+                side.write_text(
+                    value if type(value) is str else json.dumps(value, indent=1)
+                )
         result = subprocess.run(
             [sys.executable, SCRIPT, *map(str, args)],
             capture_output=True,
@@ -390,6 +400,86 @@ class TestWhitespace(unittest.TestCase):
         base = print_format("keep\nold\nend")
         out = fsjd(base, print_format("\u00a0keep\nnew\nend"))
         self.assertIn("\u00a0keep", out)
+
+
+class TestAddedDeleted(unittest.TestCase):
+    new_doctype = doctype(
+        module="Stock",
+        field_order=["qty", "notes"],
+        fields=[
+            {"fieldname": "qty", "fieldtype": "Float"},
+            {"fieldname": "notes", "fieldtype": "Text", "default": "line 1\nline [2]"},
+        ],
+        permissions=[{"role": "System Manager", "read": 1}],
+    )
+
+    def test_added_file_shows_its_contents(self):
+        out = fsjd(ABSENT, self.new_doctype)
+        self.assertIn("Added: doc.json", out)
+        self.assertRegex(out, r"fields\s+.*\+ \d+ qty\s+.*\+ fieldname : qty")
+        self.assertRegex(out, r"\+ \d+ System Manager")
+        self.assertRegex(out, r"\+ \d+ notes\s")  # field_order
+        self.assertRegex(out, r"\+ \d+ module : Stock")
+        self.assertNotIn("- ", out)
+
+    def test_deleted_file_shows_its_contents(self):
+        out = fsjd(self.new_doctype, ABSENT)
+        self.assertIn("Removed: doc.json", out)
+        self.assertRegex(out, r"- \d+ qty\s+.*- fieldname : qty")
+        self.assertRegex(out, r"- \d+ module : Stock")
+        self.assertNotIn("+ ", out)
+
+    def test_multi_line_values_are_marked_line_by_line(self):
+        out = fsjd(self.new_doctype, ABSENT)
+        self.assertRegex(out, r"- default\s+.*- line 1\s+.*- line \[2\]")
+        html = "<div>\n  {{ doc.name }}\n</div>"
+        out = fsjd(ABSENT, print_format(html))
+        self.assertRegex(out, r"\+ \d+ html\s+.*@@ -0,0 \+1,3 @@\s+.*\+ <div>")
+
+    def test_deleted_print_format_layout(self):
+        layout = [
+            {
+                "fieldname": "heading",
+                "fieldtype": "Custom HTML",
+                "options": "<h1>\n{{ doc.name }}\n</h1>",
+            },
+            {"fieldtype": "Section Break"},
+        ]
+        out = fsjd(
+            {"doctype": "Print Format", "format_data": json.dumps(layout)}, ABSENT
+        )
+        self.assertRegex(
+            out, r"format_data\s+.*- \d+ Custom HTML\s+.*- fieldname : heading"
+        )
+        self.assertRegex(out, r"- options\s+.*- <h1>\s+.*- \{\{ doc.name \}\}")
+        self.assertRegex(out, r"- \d+ Section Break")
+
+    def test_added_fixture_list(self):
+        out = fsjd(ABSENT, [{"doctype": "Role", "name": "Packer", "desk_access": 1}])
+        self.assertRegex(out, r"(?s)\+ \d+ Packer\s.*\+ desk_access : 1")
+
+    def test_table_mode(self):
+        out = fsjd(ABSENT, self.new_doctype, table_mode=1)
+        self.assertIn("Added: doc.json", out)
+        self.assertIn("System Manager", out)
+        self.assertIn("line [2]", out)
+
+    def test_renamed_file(self):
+        base = doctype(module="Stock")
+        out = fsjd(base, {**base, "module": "Selling"}, renamed_from="dir/old_doc.json")
+        self.assertIn("Renamed: old_doc.json → doc.json", out)
+        self.assertRegex(
+            out, r"(?m)^doc\.json"
+        )  # the tree is labelled with the new name
+        self.assertIn("module : Stock => Selling", out)
+
+    def test_added_file_that_is_not_json(self):
+        out = fsjd(ABSENT, "{ not json")
+        self.assertIn("doc.json is not valid JSON", out)
+
+    def test_modified_file_that_is_not_json_still_fails(self):
+        with self.assertRaises(AssertionError):
+            fsjd(self.new_doctype, "{ not json")
 
 
 if __name__ == "__main__":
