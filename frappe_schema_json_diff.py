@@ -106,15 +106,29 @@ class FrappeDiff:
                     if rtree.children:
                         dict_tree.add(rtree)
                 elif bk_v != hk_v and not bk in ("modified", "modified_by", "creation"):
-                    # A Print Format's format_data is its builder layout as a JSON string: diff the parsed lists.
-                    if bk == "format_data" and (lists := json_lists(bk_v, hk_v)):
-                        rtree = self.list_diff(
-                            bk, *lists, self.conc_b_path, self.conc_h_path
+                    # JSON held in a string (a Print Format's format_data, a Workspace's
+                    # content, a Property Setter's value): diff the parsed values.
+                    if parsed := json_values(bk_v, hk_v):
+                        diff = (
+                            self.list_diff
+                            if type(parsed[0]) is list
+                            else self.dict_diff
                         )
+                        rtree = diff(bk, *parsed, self.conc_b_path, self.conc_h_path)
                         if rtree.children:
                             dict_tree.add(rtree)
+                        else:
+                            # the nested diff moved them
+                            self.conc_b_path = f"{b_path}/{bk}"
+                            self.conc_h_path = f"{h_path}/{bk}"
+                            self.json_note(bk, *parsed, dict_tree)
                     elif is_text(bk_v, hk_v):
-                        self.text_diff(bk, bk_v or "", hk_v or "", dict_tree)
+                        hunks = text_hunks(bk_v or "", hk_v or "")
+                        self.hunk_kvp(
+                            bk,
+                            hunks or [Text("whitespace only", style="dim")],
+                            dict_tree,
+                        )
                     else:
                         self.mod_kvp(bk, f"{bk_v}", f"{hk_v}", dict_tree)
             else:
@@ -175,10 +189,24 @@ class FrappeDiff:
                 f" {key} : [red]{b_val}[/red] => [green]{h_val}[/green]"
             )
 
-    def text_diff(self, key: str, b_val: str, h_val: str, tree: Tree) -> None:
-        # Multi-line values (HTML, Jinja, CSS, SQL, scripts, ZPL): show the changed lines in
-        # context instead of both whole values. Their line numbers are within the value.
-        hunks = text_hunks(b_val, h_val) or [Text("whitespace only", style="dim")]
+    def json_note(self, key: str, b_val, h_val, tree: Tree) -> None:
+        # The parsed values pair up without differences: say what did change, if anything
+        # fsjd reports. Order is ignored when pairing, but in e.g. field_order it's the content.
+        if b_val == h_val:
+            self.hunk_kvp(key, [Text("formatting only", style="dim")], tree)
+        elif type(b_val) is list and sorted(map(canonical, b_val)) == sorted(
+            map(canonical, h_val)
+        ):
+            b_lines, h_lines = (
+                "\n".join(e if type(e) is str else canonical(e) for e in v)
+                for v in (b_val, h_val)
+            )
+            order = Text("order changed", style="dim")
+            self.hunk_kvp(key, [order, *text_hunks(b_lines, h_lines)], tree)
+
+    def hunk_kvp(self, key: str, hunks: "list[Text]", tree: Tree) -> None:
+        # Changed lines of a multi-line value (HTML, Jinja, CSS, SQL, scripts, ZPL) in place
+        # of both whole values; hunk line numbers are within the value.
         lines = (
             f"[bold red]{self.base_ln.key(self.conc_b_path)}[/bold red] => "
             f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
@@ -511,12 +539,16 @@ def canonical(elem) -> str:
     return json.dumps(elem, sort_keys=True)
 
 
-def json_lists(*texts: str) -> "Optional[tuple[list, ...]]":
+def json_values(*texts: str) -> "Optional[tuple]":
+    # The values parsed, if every text is JSON for a list, or every one for a dict.
+    if not all(type(t) is str for t in texts):
+        return None
     try:
         values = tuple(json.loads(t) for t in texts)
-    except (TypeError, ValueError):
+    except ValueError:
         return None
-    return values if all(type(v) is list for v in values) else None
+    types = {type(v) for v in values}
+    return values if types == {list} or types == {dict} else None
 
 
 def is_text(*values) -> bool:

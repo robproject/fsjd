@@ -294,5 +294,44 @@ class TestText(unittest.TestCase):
         self.assertNotIn("col_0", out)
 
 
+def field_order(order: "list[str]") -> dict:
+    setter = {"name": "Item-main-field_order", "property": "field_order"}
+    return {
+        "doctype": "Item",
+        "property_setters": [{**setter, "value": json.dumps(order)}],
+    }
+
+
+class TestJsonInString(unittest.TestCase):
+    def test_field_order_rename(self):
+        out = fsjd(field_order(["a", "b_old", "c"]), field_order(["a", "b_new", "c"]))
+        self.assertRegex(out, r"- \d+ b_old\s+.*\+ \d+ b_new")
+        self.assertNotIn('"a"', out)
+
+    def test_field_order_reorder(self):
+        out = fsjd(field_order(["a", "b", "c", "d"]), field_order(["a", "c", "d", "b"]))
+        self.assertIn("order changed", out)
+        self.assertRegex(out, r"- b\s+.*c\s+.*d\s+.*\+ b")
+
+    def test_formatting_only(self):
+        base = {"doctype": "Number Card", "filters_json": '{"status": "Open"}'}
+        out = fsjd(base, {**base, "filters_json": '{"status":"Open"}'})
+        self.assertIn("formatting only", out)
+
+    def test_workspace_content_block_added(self):
+        block = {"id": "a1", "type": "shortcut", "data": {"shortcut_name": "Item"}}
+        added = {"id": "b2", "type": "shortcut", "data": {"shortcut_name": "BOM"}}
+        base = {"doctype": "Workspace", "content": json.dumps([block])}
+        out = fsjd(base, {**base, "content": json.dumps([block, added])})
+        self.assertRegex(out, r"content\s+.*\+ \d+ b2")
+        self.assertNotIn("a1", out)
+
+    def test_strings_that_are_not_json_containers(self):
+        base = {"doctype": "DocType", "description": "10", "label": "Qty [i]"}
+        out = fsjd(base, {**base, "description": "11", "label": "Qty [j]"})
+        self.assertIn("description : 10 => 11", out)
+        self.assertIn("label : Qty [i] => Qty [j]", out)
+
+
 if __name__ == "__main__":
     unittest.main()
