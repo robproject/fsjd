@@ -51,6 +51,12 @@ def line_of(obj, text: str) -> int:
     return json.dumps(obj, indent=1).splitlines().index(text) + 1
 
 
+def record_starts(records: list) -> "list[int]":
+    # 1-based first line of each record in a records file as the tests write it
+    lines = json.dumps(records, indent=1).splitlines()
+    return [i + 1 for i, line in enumerate(lines) if line == " {"]
+
+
 class TestLineNumbers(unittest.TestCase):
     def test_lines_are_the_files_own(self):
         base = doctype(
@@ -580,6 +586,60 @@ class TestAddedDeleted(unittest.TestCase):
 
     def test_no_records(self):
         self.assertIn("+ no records", fsjd(ABSENT, []))
+
+    def test_fixtures_gaining_or_losing_a_few_records_show_them(self):
+        kept = [{"doctype": "Role", "name": "Kept"}]
+        new = [{"doctype": "Role", "name": f"R{i}", "desk_access": 1} for i in range(5)]
+        for table_mode in (0, 1):
+            out = fsjd(kept, kept + new, table_mode=table_mode)
+            self.assertEqual(out.count("desk_access"), 5, out)  # whole
+            out = fsjd(kept + new[:2], kept + new[2:], table_mode=table_mode)
+            self.assertEqual(out.count("desk_access"), 5, out)  # 2 lost + 3 gained
+
+    def test_fixtures_gaining_or_losing_more_name_them(self):
+        kept = [{"doctype": "Role", "name": "Kept", "desk_access": 0}]
+        lost = [
+            {"doctype": "Role", "name": f"Old{i}", "desk_access": 1} for i in range(3)
+        ]
+        gained = [
+            {"doctype": "Role", "name": f"New{i}", "desk_access": 1} for i in range(3)
+        ]
+        base, head = kept + lost, [{**kept[0], "desk_access": 1}] + gained
+        out = fsjd(base, head)
+        self.assertIn("desk_access : 0 => 1", out)  # a kept record still diffs
+        for i in range(3):
+            self.assertRegex(out, rf"- {record_starts(base)[i + 1]} Role: Old{i} *\n")
+            self.assertRegex(out, rf"\+ {record_starts(head)[i + 1]} Role: New{i} *\n")
+        self.assertEqual(out.count("desk_access"), 1, out)
+        out = fsjd(base, head, table_mode=1)
+        self.assertIn("Role: New2", out)
+        self.assertNotIn("VALUES BELOW", out)  # no record whole
+
+    def test_fixtures_gaining_or_losing_many_count_them(self):
+        rows = [
+            {
+                "doctype": "Workspace Link",
+                "name": f"h{i}",
+                "parent": "Stock",
+                "label": f"L{i}",
+            }
+            for i in range(60)
+        ]
+        for base in ([], [{"doctype": "Role", "name": "Kept"}]):
+            out = fsjd(base, base + rows)
+            self.assertIn("+ Workspace Link in Stock: 60 records", out)
+            self.assertNotIn("L1", out)
+
+    def test_only_a_fixtures_file_is_summarised(self):
+        # a DocType's fields gaining many rows still show them whole
+        fields = [{"fieldname": f"f{i}", "fieldtype": "Data"} for i in range(8)]
+        out = fsjd(doctype(), doctype(fields=fields))
+        self.assertEqual(out.count("fieldtype : Data"), 8, out)
+        # and so do the child rows of a record in a fixtures file
+        links = [{"link_to": f"D{i}", "link_type": "DocType"} for i in range(8)]
+        workspace = {"doctype": "Workspace", "name": "Stock", "links": []}
+        out = fsjd([workspace], [{**workspace, "links": links}])
+        self.assertEqual(out.count("link_type : DocType"), 8, out)
 
     def test_other_json_shows_its_size(self):
         # the file's own lines, as written

@@ -28,7 +28,7 @@ class FrappeDiff:
         # An added Frappe document is shown whole: diffed against a hollow copy of itself
         # (see hollow), all of it shows as added. Other added or deleted files are summed
         # up instead (see sum_up).
-        self.whole = False
+        self.whole = self.records_file = False
         if self.only == "+":
             self.head_obj, self.head_ln = self.get_file(self.new_path)
             self.whole = shape(self.head_obj, self.name) == "document"
@@ -39,6 +39,10 @@ class FrappeDiff:
         else:
             self.base_obj, self.base_ln = self.get_file(self.old_path)
             self.head_obj, self.head_ln = self.get_file(self.new_path)
+            self.records_file = all(
+                shape(obj, self.name) == "records"
+                for obj in (self.base_obj, self.head_obj)
+            )
         self.make_label()
         if self.print_table:
             self.prep_table()
@@ -107,29 +111,25 @@ class FrappeDiff:
         )
         if (kind := shape(obj, self.name)) == "document":
             entries = [("", doc_title(obj))]
-        elif kind == "records" and not obj:
-            entries = [(None, "no records")]
-        elif kind == "records" and len(obj) <= RECORDS_LISTED:
-            entries = [(f"/{i}", doc_title(doc)) for i, doc in enumerate(obj)]
         elif kind == "records":
-            # too many to list: count them by doctype and what they belong to
-            groups = Counter(map(record_group, obj))
-            entries = [(None, f"{g}: {plural(n, 'record')}") for g, n in groups.items()]
+            entries = record_entries(list(enumerate(obj))) or [(None, "no records")]
         else:
             lines = len(ln.json_str.splitlines())
             entries = [(None, f"not a Frappe document: {plural(lines, 'line')}")]
-        color = "green" if self.only == "+" else "red"
+        self.add_entries(self.tree, self.only, ln, entries)
+
+    def add_entries(self, tree: Tree, sign: str, ln: "LineNos", entries: list) -> None:
+        # (path or None, text) lines that name or count records rather than show them
+        color = "green" if sign == "+" else "red"
         for path, text in entries:
             # Text, not markup: titles are data
-            mark = f"{self.only} " + ("" if path is None else f"{ln.val(path)} ")
+            mark = f"{sign} " + ("" if path is None else f"{ln.val(path)} ")
             if self.print_table:
                 self.table.add_row(
                     Text(mark + (path or ""), style="bold"), Text(text), "", style=color
                 )
             else:
-                self.tree.add(
-                    Text(mark, style=f"bold {color}") + Text(text, style=color)
-                )
+                tree.add(Text(mark, style=f"bold {color}") + Text(text, style=color))
 
     def dict_diff(
         self,
@@ -310,6 +310,16 @@ class FrappeDiff:
                 base_keys = keys_of(base_list, common_key)
                 head_keys = keys_of(head_list, common_key)
                 pairs = key_pairs(base_list, head_list, base_keys, head_keys)
+                paired = set(pairs.values())
+                removed = [i for i in range(len(base_list)) if i not in pairs]
+                added = [j for j in range(len(head_list)) if j not in paired]
+                # The records a fixtures file gains or loses are shown whole if there are
+                # only a few, else named or counted (see record_entries).
+                brief = (
+                    not b_path
+                    and self.records_file
+                    and len(removed) + len(added) > RECORDS_SHOWN
+                )
                 for i, bd in enumerate(base_list):
                     conc_b_path = f"{b_path}/{i}"
                     if (j := pairs.get(i)) is not None:
@@ -322,15 +332,24 @@ class FrappeDiff:
                         )
                         if rtree.children:
                             list_tree.add(rtree)
-                    else:
+                    elif not brief:
                         self.red_dict(
                             bd, conc_b_path, list_tree, key_label(base_keys[i])
                         )
-                paired = set(pairs.values())
-                for j, hd in enumerate(head_list):
-                    if j not in paired:
+                if brief:
+                    for sign, ln, side, indexes in (
+                        ("-", self.base_ln, base_list, removed),
+                        ("+", self.head_ln, head_list, added),
+                    ):
+                        entries = record_entries([(i, side[i]) for i in indexes])
+                        self.add_entries(list_tree, sign, ln, entries)
+                else:
+                    for j in added:
                         self.grn_dict(
-                            hd, f"{h_path}/{j}", list_tree, key_label(head_keys[j])
+                            head_list[j],
+                            f"{h_path}/{j}",
+                            list_tree,
+                            key_label(head_keys[j]),
                         )
             else:
                 self.aligned_diff(list_tree, base_list, head_list, b_path, h_path)
@@ -678,7 +697,18 @@ def hollow_file(doc: dict) -> "tuple":
     return shell, LineNos(json.dumps(shell, indent=1))
 
 
-RECORDS_LISTED = 50  # an added or deleted file with more records counts them instead
+# Records a fixtures file gains or loses are shown whole up to RECORDS_SHOWN, named up to
+# RECORDS_LISTED, and counted beyond that. Records in an added or deleted file are named.
+RECORDS_SHOWN = 5
+RECORDS_LISTED = 50
+
+
+def record_entries(indexed: "list[tuple[int, dict]]") -> list:
+    # (path, title) per (index, record), or past RECORDS_LISTED, (None, count) per group
+    if len(indexed) <= RECORDS_LISTED:
+        return [(f"/{i}", doc_title(doc)) for i, doc in indexed]
+    groups = Counter(record_group(doc) for _, doc in indexed)
+    return [(None, f"{g}: {plural(n, 'record')}") for g, n in groups.items()]
 
 
 def shape(obj, file_name: str = "") -> str:
