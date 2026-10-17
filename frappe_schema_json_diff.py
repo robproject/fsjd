@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 import difflib
 from itertools import zip_longest
@@ -12,6 +12,7 @@ from json_source_map import calculate
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
+from rich.text import Text
 from rich.tree import Tree
 
 
@@ -105,13 +106,38 @@ class FrappeDiff:
                     if rtree.children:
                         dict_tree.add(rtree)
                 elif bk_v != hk_v and not bk in ("modified", "modified_by", "creation"):
-                    # A Print Format's format_data is its builder layout as a JSON string: diff the parsed lists.
-                    if bk == "format_data" and (lists := json_lists(bk_v, hk_v)):
-                        rtree = self.list_diff(
-                            bk, *lists, self.conc_b_path, self.conc_h_path
+                    # JSON held in a string (a Print Format's format_data, a Workspace's
+                    # content, a Property Setter's value): diff the parsed values.
+                    if parsed := json_values(bk_v, hk_v):
+                        diff = (
+                            self.list_diff
+                            if type(parsed[0]) is list
+                            else self.dict_diff
+                        )
+                        rows = len(self.table.rows) if self.print_table else 0
+                        rtree = diff(bk, *parsed, self.conc_b_path, self.conc_h_path)
+                        shown = bool(rtree.children) or (
+                            self.print_table and len(self.table.rows) > rows
                         )
                         if rtree.children:
                             dict_tree.add(rtree)
+                        # the nested diff moved them
+                        self.conc_b_path = f"{b_path}/{bk}"
+                        self.conc_h_path = f"{h_path}/{bk}"
+                        if notes := json_notes(*parsed):
+                            self.hunk_kvp(bk, notes, dict_tree)
+                        elif not shown:
+                            # e.g. a repeat removed, or only ignored keys changed
+                            self.mod_kvp(bk, f"{bk_v}", f"{hk_v}", dict_tree)
+                    elif is_text(bk_v, hk_v):
+                        hunks = text_hunks(
+                            bk_v or "", hk_v or "", keep_indent=bk in CODE_KEYS
+                        )
+                        self.hunk_kvp(
+                            bk,
+                            hunks or [Text("whitespace only", style="dim")],
+                            dict_tree,
+                        )
                     else:
                         self.mod_kvp(bk, f"{bk_v}", f"{hk_v}", dict_tree)
             else:
@@ -171,6 +197,25 @@ class FrappeDiff:
                 f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
                 f" {key} : [red]{b_val}[/red] => [green]{h_val}[/green]"
             )
+
+    def hunk_kvp(self, key: str, hunks: "list[Text]", tree: Tree) -> None:
+        # Changed lines of a multi-line value (HTML, Jinja, CSS, SQL, scripts, ZPL) in place
+        # of both whole values; hunk line numbers are within the value.
+        lines = (
+            f"[bold red]{self.base_ln.key(self.conc_b_path)}[/bold red] => "
+            f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
+        )
+        if self.print_table:
+            for hunk in hunks:
+                self.table.add_row(
+                    f"{lines} {escape(self.conc_h_path)}",
+                    f"[default]{escape(key)}[/default]",
+                    hunk,
+                )
+        else:
+            key_tree = tree.add(f"{lines} {escape(key)}")
+            for hunk in hunks:
+                key_tree.add(hunk)
 
     def list_diff(
         self,
@@ -488,12 +533,116 @@ def canonical(elem) -> str:
     return json.dumps(elem, sort_keys=True)
 
 
-def json_lists(*texts: str) -> "Optional[tuple[list, ...]]":
+def json_values(*texts: str) -> "Optional[tuple]":
+    # The values parsed, if every text is JSON for a list, or every one for a dict, and
+    # not nested so deep that diffing them would hit the recursion limit.
+    if not all(type(t) is str for t in texts):
+        return None
     try:
         values = tuple(json.loads(t) for t in texts)
-    except (TypeError, ValueError):
+    except (ValueError, RecursionError):
         return None
-    return values if all(type(v) is list for v in values) else None
+    types = {type(v) for v in values}
+    if types not in ({list}, {dict}) or max(map(depth, values)) > 100:
+        return None
+    return values
+
+
+def depth(value) -> int:
+    deepest, stack = 0, [(value, 1)]
+    while stack:
+        value, d = stack.pop()
+        if type(value) in (list, dict):
+            deepest = max(deepest, d)
+            children = value.values() if type(value) is dict else value
+            stack.extend((child, d + 1) for child in children)
+    return deepest
+
+
+def json_notes(b_val, h_val) -> "list[Text]":
+    # What the paired diff of JSON values doesn't show. It pairs list items regardless of
+    # order, but in e.g. field_order the order is the content.
+    if canonical(b_val) == canonical(h_val):
+        return [Text("formatting only", style="dim")]
+    if type(b_val) is not list:
+        return []
+    b_items, h_items = list(map(canonical, b_val)), list(map(canonical, h_val))
+    shared = Counter(b_items) & Counter(h_items)
+    if in_order(b_items, shared) == in_order(h_items, shared):
+        return []
+    b_lines, h_lines = (
+        "\n".join(e if type(e) is str else canonical(e) for e in v)
+        for v in (b_val, h_val)
+    )
+    return [Text("order changed", style="dim"), *text_hunks(b_lines, h_lines)]
+
+
+def in_order(items: "list[str]", shared: Counter) -> "list[str]":
+    # The items the other list also has, in this list's order.
+    left, kept = Counter(shared), []
+    for item in items:
+        if left[item]:
+            left[item] -= 1
+            kept.append(item)
+    return kept
+
+
+def is_text(*values) -> bool:
+    # Strings or nothing, at least one of them over several lines.
+    return all(v is None or type(v) is str for v in values) and any(
+        type(v) is str and "\n" in v for v in values
+    )
+
+
+# Fields holding Python, where indentation is logic.
+CODE_KEYS = {"script", "report_script", "condition", "code"}
+
+
+def text_hunks(
+    b_text: str, h_text: str, context: int = 2, keep_indent: bool = False
+) -> "list[Text]":
+    # Whitespace at the ends of a line doesn't count, so a re-indent matches; with
+    # keep_indent only trailing whitespace. Hunks with nothing but blank lines changed
+    # are skipped. difflib's autojunk keeps very long values fast.
+    b_lines, h_lines = b_text.splitlines(), h_text.splitlines()
+    trim = str.rstrip if keep_indent else str.strip
+    matcher = difflib.SequenceMatcher(
+        None,
+        [trim(line) for line in b_lines],
+        [trim(line) for line in h_lines],
+        autojunk=max(len(b_lines), len(h_lines)) > 2000,
+    )
+
+    def blank(tag, a1, a2, c1, c2) -> bool:
+        return tag == "equal" or not "".join(b_lines[a1:a2] + h_lines[c1:c2]).strip()
+
+    hunks = []
+    for group in matcher.get_grouped_opcodes(context):
+        if all(blank(*op) for op in group):
+            continue
+        i1, i2, j1, j2 = group[0][1], group[-1][2], group[0][3], group[-1][4]
+        hunk = Text(
+            f"@@ -{hunk_range(i1, i2)} +{hunk_range(j1, j2)} @@",
+            style="cyan",
+            tab_size=4,
+        )
+        for tag, a1, a2, c1, c2 in group:
+            if tag == "equal":
+                for line in h_lines[c1:c2]:
+                    hunk.append(f"\n  {line}", style="dim")
+                continue
+            for line in b_lines[a1:a2]:
+                hunk.append(f"\n- {line}", style="red")
+            for line in h_lines[c1:c2]:
+                hunk.append(f"\n+ {line}", style="green")
+        hunks.append(hunk)
+    return hunks
+
+
+def hunk_range(start: int, stop: int) -> str:
+    # As in a unified diff: 1-based, and an empty range is placed after the line before it.
+    length = stop - start
+    return f"{start + 1 if length else start},{length}"
 
 
 def is_json(text):
