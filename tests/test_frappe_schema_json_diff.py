@@ -18,13 +18,13 @@ SCRIPT = Path(__file__).resolve().parent.parent / "frappe_schema_json_diff.py"
 ABSENT = object()  # the side of an added or deleted file that git gives as /dev/null
 
 
-def fsjd(base, head, table_mode=0, renamed_from="") -> str:
+def fsjd(base, head, table_mode=0, renamed_from="", path="doc.json") -> str:
     with tempfile.TemporaryDirectory() as tmp:
         old, new = Path(tmp, "old_doc.json"), Path(tmp, "doc.json")
         # path old-file old-hex old-mode new-file new-hex new-mode [new-path xfrm-msg]
-        args = ["doc.json", old, "1" * 40, "100644", new, "2" * 40, "100644"]
+        args = [path, old, "1" * 40, "100644", new, "2" * 40, "100644"]
         if renamed_from:
-            args = [renamed_from, *args[1:], "doc.json", "similarity index 90%"]
+            args = [renamed_from, *args[1:], path, "similarity index 90%"]
         for i, (side, value) in ((1, (old, base)), (4, (new, head))):
             if value is ABSENT:
                 args[i : i + 3] = [os.devnull, ".", "."]
@@ -503,28 +503,94 @@ class TestAddedDeleted(unittest.TestCase):
                 "label": "Reports",
             },
         ]
+        # each record's first line in the file as the tests write it
+        starts = [
+            i + 1
+            for i, l in enumerate(json.dumps(roles, indent=1).splitlines())
+            if l == " {"
+        ]
         for sign, base, head in (("+", ABSENT, roles), ("-", roles, ABSENT)):
             out = fsjd(base, head)
-            for title in (
-                "Role: Packer",
-                "Workspace: Shipping",
-                "Item: (no name)",
-                "Workspace Link in CRM: Reports",
+            for start, title in zip(
+                starts,
+                (
+                    "Role: Packer",
+                    "Workspace: Shipping",
+                    "Item: (no name)",
+                    "Workspace Link in CRM: Reports",
+                ),
             ):
-                self.assertRegex(out, rf"{re.escape(sign)} \d+ {re.escape(title)}\s")
+                self.assertRegex(out, rf"{re.escape(f'{sign} {start} {title}')} *\n")
             self.assertNotIn("desk_access", out)
         out = fsjd(ABSENT, roles, table_mode=1)
         self.assertIn("Role: Packer", out)
         self.assertNotIn("desk_access", out)
 
+    def test_record_titles(self):
+        records = [
+            {"doctype": "Workspace", "name": "N", "title": "T"},
+            {"doctype": "Item", "item_code": "_Test Item"},
+            {"doctype": "User", "email": "a@example.com"},
+            {"doctype": "Dunning Type", "dunning_type": "First Notice"},
+            {"doctype": "Academic Term", "academic_term_name": "2026"},
+            {"doctype": "Note", "name": "[bold]x[/bold] \\"},
+            {"doctype": "Note", "title": "two\nlines"},
+        ]
+        for table_mode in (0, 1):
+            out = fsjd(ABSENT, records, table_mode=table_mode)
+            for title in (
+                "Workspace: N",
+                "Item: _Test Item",
+                "User: a@example.com",
+                "Dunning Type: First Notice",
+                "Academic Term: 2026",
+                "Note: [bold]x[/bold] \\",
+                "Note: two lines",
+            ):
+                self.assertIn(title, out)
+            self.assertNotIn("\\\\", out)
+
+    def test_test_records_without_doctype(self):
+        records = [{"item_code": "_Test Item"}, {"title": "Other"}]
+        out = fsjd(records, ABSENT, path="stock/doctype/item/test_records.json")
+        self.assertRegex(out, r"- \d+ _Test Item\s")
+        self.assertRegex(out, r"- \d+ Other\s")
+        self.assertIn("not a Frappe document", fsjd(records, ABSENT))  # elsewhere
+
+    def test_many_records_are_counted(self):
+        rows = [
+            {"doctype": "Workspace Link", "parent": p, "label": f"L{i}"}
+            for p in ("Stock", "CRM")
+            for i in range(30)
+        ]
+        fields = [
+            {"doctype": "Custom Field", "dt": "Item", "fieldname": f"f{i}"}
+            for i in range(5)
+        ]
+        for table_mode in (0, 1):
+            out = fsjd(rows + fields, ABSENT, table_mode=table_mode)
+            for group in (
+                "Workspace Link in Stock: 30 records",
+                "Workspace Link in CRM: 30 records",
+                "Custom Field for Item: 5 records",
+            ):
+                self.assertIn(group, out)
+            self.assertNotIn("L1", out)
+        self.assertIn("L1", fsjd(rows[:50], ABSENT))  # up to 50 are listed
+
+    def test_no_records(self):
+        self.assertIn("+ no records", fsjd(ABSENT, []))
+
     def test_other_json_shows_its_size(self):
-        chart = {"Assets": {"Current": {"Cash": {"account_type": "Cash"}}}}
+        # the file's own lines, as written
+        chart = '{\n\n "Assets": {"Current": {"Cash": {"account_type": "Cash"}}}\n}\n'
         for sign, base, head in (("+", ABSENT, chart), ("-", chart, ABSENT)):
-            out = fsjd(base, head)
-            lines = len(json.dumps(chart, indent=1).splitlines())
-            self.assertIn(f"{sign} {lines} lines, not a Frappe document", out)
-            self.assertNotIn("Cash", out)
-        self.assertIn("+ 1 line, not a Frappe document", fsjd(ABSENT, 42))
+            for table_mode in (0, 1):
+                out = fsjd(base, head, table_mode=table_mode)
+                self.assertIn("not a Frappe document: 4 lines", out)
+                self.assertIn(sign, out)
+                self.assertNotIn("Cash", out)
+        self.assertIn("+ not a Frappe document: 1 line", fsjd(ABSENT, 42))
 
     def test_table_mode(self):
         out = fsjd(ABSENT, self.new_doctype, table_mode=1)
@@ -556,7 +622,7 @@ class TestAddedDeleted(unittest.TestCase):
 
     def test_file_that_is_a_scalar(self):
         self.assertIn("1 => 2", fsjd(1, 2))
-        self.assertIn("- 1 line, not a Frappe document", fsjd(None, ABSENT))
+        self.assertIn("- not a Frappe document: 1 line", fsjd(None, ABSENT))
 
     def test_empty_values_are_shown(self):
         head = doctype(

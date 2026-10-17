@@ -31,7 +31,7 @@ class FrappeDiff:
         self.whole = False
         if self.only == "+":
             self.head_obj, self.head_ln = self.get_file(self.new_path)
-            self.whole = shape(self.head_obj) == "document"
+            self.whole = shape(self.head_obj, self.name) == "document"
             if self.whole:
                 self.base_obj, self.base_ln = hollow_file(self.head_obj)
         elif self.only == "-":
@@ -105,28 +105,30 @@ class FrappeDiff:
             if self.only == "+"
             else (self.base_obj, self.base_ln)
         )
-        if (kind := shape(obj)) == "document":
+        if (kind := shape(obj, self.name)) == "document":
             entries = [("", doc_title(obj))]
-        elif kind == "records":
+        elif kind == "records" and not obj:
+            entries = [(None, "no records")]
+        elif kind == "records" and len(obj) <= RECORDS_LISTED:
             entries = [(f"/{i}", doc_title(doc)) for i, doc in enumerate(obj)]
+        elif kind == "records":
+            # too many to list: count them by doctype and what they belong to
+            groups = Counter(map(record_group, obj))
+            entries = [(None, f"{g}: {plural(n, 'record')}") for g, n in groups.items()]
         else:
             lines = len(ln.json_str.splitlines())
-            entries = [
-                (None, f"{lines} line{'s' * (lines != 1)}, not a Frappe document")
-            ]
+            entries = [(None, f"not a Frappe document: {plural(lines, 'line')}")]
         color = "green" if self.only == "+" else "red"
         for path, text in entries:
-            line = "" if path is None else f"{ln.val(path)} "
+            # Text, not markup: titles are data
+            mark = f"{self.only} " + ("" if path is None else f"{ln.val(path)} ")
             if self.print_table:
                 self.table.add_row(
-                    f"[bold]{self.only} {line}[/bold]{escape(path or '')}",
-                    escape(text),
-                    "",
-                    style=color,
+                    Text(mark + (path or ""), style="bold"), Text(text), "", style=color
                 )
             else:
                 self.tree.add(
-                    f"[{color}][bold]{self.only} {line}[/bold]{escape(text)}[/{color}]"
+                    Text(mark, style=f"bold {color}") + Text(text, style=color)
                 )
 
     def dict_diff(
@@ -676,27 +678,57 @@ def hollow_file(doc: dict) -> "tuple":
     return shell, LineNos(json.dumps(shell, indent=1))
 
 
-def shape(obj) -> str:
+RECORDS_LISTED = 50  # an added or deleted file with more records counts them instead
+
+
+def shape(obj, file_name: str = "") -> str:
     # "document": one Frappe document (a DocType, Report, Print Format, Workspace, a
-    # customize file); "records": a list of them (fixtures, test records); else "other",
-    # e.g. a chart of accounts or package.json.
+    # customize file); "records": a list of them (fixtures, test records, whose doctype
+    # Frappe may take from their folder); else "other", e.g. a chart of accounts.
     if type(obj) is dict:
         return "document" if "doctype" in obj else "other"
-    if type(obj) is list and all(type(d) is dict and "doctype" in d for d in obj):
+    if type(obj) is list and all(
+        type(d) is dict and ("doctype" in d or file_name == "test_records.json")
+        for d in obj
+    ):
         return "records"
     return "other"
 
 
 def doc_title(doc: dict) -> str:
     # A child table row (a Workspace Link, say) is named by a hash: use its label, and
-    # say whose row it is.
-    if doc.get("parent"):
-        name = next((doc[k] for k in ("label", "title", "name") if doc.get(k)), None)
-        return f"{doc['doctype']} in {doc['parent']}: {name or '(no name)'}"
-    name = next((doc[k] for k in ("name", "title", "label") if doc.get(k)), None)
+    # say whose row it is. A test record often has no name: try the fields that name
+    # one of its doctype.
+    doctype = doc.get("doctype")
+    scrubbed = f"{doctype}".lower().replace(" ", "_").replace("-", "_")
+    keys = (
+        ("label", "title", "name") if doc.get("parent") else ("name", "title", "label")
+    )
+    keys += (f"{scrubbed}_name", scrubbed, "item_code", "email", "subject")
+    name = next((doc[k] for k in keys if doc.get(k)), None)
     if name is None and ("custom_fields" in doc or "property_setters" in doc):
-        return f"Customizations: {doc['doctype']}"
-    return f"{doc['doctype']}: {name or '(no name)'}"
+        title = f"Customizations: {doctype}"
+    else:
+        title = f"{name}" if name is not None else "(no name)"
+        if doctype is not None:
+            parent = f" in {doc['parent']}" if doc.get("parent") else ""
+            title = f"{doctype}{parent}: {title}"
+    return " ".join(title.split())  # one line
+
+
+def record_group(doc: dict) -> str:
+    # what a record belongs to: a child row's parent, a Custom Field's or Property
+    # Setter's doctype
+    group = f"{doc.get('doctype', 'Record')}"
+    if doc.get("parent"):
+        group += f" in {doc['parent']}"
+    if for_doctype := doc.get("dt") or doc.get("doc_type"):
+        group += f" for {for_doctype}"
+    return " ".join(group.split())
+
+
+def plural(n: int, noun: str) -> str:
+    return f"{n} {noun}{'s' * (n != 1)}"
 
 
 def json_notes(b_val, h_val) -> "list[Text]":
