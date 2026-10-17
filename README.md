@@ -39,7 +39,7 @@ The diff output will appear in a runner terminal for pull requests and pushes, a
 Copy the file `.github/workflows/main.yaml` along with its parent directories into the root folder of a custom app. Change the branch on lines 4 and 6 if applicable. Keep the `1` on line 24 to print table diffs or change it to `0` for trees.
 
 ## Output
-Runner terminals will show JSON file names and diff content for any modified files, and names of deleted files. If any schema changes (changed JSON) are present, the workflow will fail.  
+Runner terminals will show JSON file names and diff content for any modified files, and the whole contents of added and deleted files; a renamed file is noted with its old name. If any schema changes (changed JSON) are present, the workflow will fail.  
 ### CI Terminal
 [example](https://github.com/robproject/fsjd/runs/8027932932?check_suite_focus=true#step:8:5)  
 ### Table

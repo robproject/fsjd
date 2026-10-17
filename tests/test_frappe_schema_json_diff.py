@@ -369,9 +369,10 @@ class TestJsonInString(unittest.TestCase):
         self.assertIn("description : 10 => 11", out)
         self.assertIn("label : Qty [i] => Qty [j]", out)
 
-    def test_field_order_repeat_removed_falls_back(self):
+    def test_field_order_repeat_removed(self):
         out = fsjd(field_order(["a", "a", "b"]), field_order(["a", "b"]))
-        self.assertIn('value : ["a", "a", "b"] => ["a", "b"]', out)
+        self.assertEqual(len(re.findall(r"- \d+ a\s", out)), 1, out)
+        self.assertNotIn("=>", out)
 
     def test_field_order_move_with_rename(self):
         out = fsjd(
@@ -502,11 +503,63 @@ class TestAddedDeleted(unittest.TestCase):
 
     def test_added_file_that_is_not_json(self):
         out = fsjd(ABSENT, "{ not json")
-        self.assertIn("doc.json is not valid JSON", out)
+        self.assertIn("doc.json can't be shown: JSONDecodeError", out)
 
     def test_modified_file_that_is_not_json_still_fails(self):
         with self.assertRaises(AssertionError):
             fsjd(self.new_doctype, "{ not json")
+
+    def test_renamed_from_another_type(self):
+        out = fsjd("var x = 1;", {"a": 1}, renamed_from="public/conf.js")
+        self.assertIn("Renamed: conf.js → doc.json", out)
+        self.assertIn("can't be shown: JSONDecodeError", out)
+
+    def test_file_that_is_a_scalar(self):
+        self.assertRegex(fsjd(ABSENT, 42), r"\+ 42\s")
+        self.assertRegex(fsjd(None, ABSENT), r"- None\s")
+        self.assertIn("1 => 2", fsjd(1, 2))
+
+    def test_empty_values_are_shown(self):
+        head = doctype(
+            permissions=[], links=[], filters_json="[]", spaced="[ ]", meta={}
+        )
+        out = fsjd(ABSENT, head)
+        for key, value in [
+            ("permissions", "[]"),
+            ("links", "[]"),
+            ("filters_json", "[]"),
+            ("spaced", "[ ]"),
+            ("meta", "{}"),
+        ]:
+            self.assertRegex(out, rf"\+ \d+ {key} : {re.escape(value)}\s")
+        self.assertNotIn("formatting only", out)
+
+    def test_repeated_list_items(self):
+        out = fsjd(ABSENT, doctype(field_order=["a", "a", "b"]))
+        self.assertEqual(len(re.findall(r"\+ \d+ a\s", out)), 2, out)
+        out = fsjd(
+            doctype(field_order=["a", "a", "b"]), doctype(field_order=["a", "b"])
+        )
+        self.assertEqual(len(re.findall(r"- \d+ a\s", out)), 1, out)
+
+    def test_added_file_prints_in_file_order(self):
+        out = fsjd(ABSENT, self.new_doctype)
+        top = re.findall(r"^[├└]── (?:\+ \d+ )?(\w+)", out, re.M)
+        self.assertEqual(top, list(self.new_doctype), out)
+
+    def test_escaped_key_lines(self):
+        base, head = {"doctype": "DocType", "café": 1}, {
+            "doctype": "DocType",
+            "café": 2,
+        }
+        line = line_of(base, ' "caf\\u00e9": 1')
+        self.assertIn(f"{line} => {line} café : 1 => 2", fsjd(base, head))
+
+    def test_multi_line_value_added_or_removed_in_a_modified_file(self):
+        out = fsjd(doctype(), doctype(description="a\nline [2]"))
+        self.assertRegex(out, r"\+ \d+ description\s+.*\+ a\s+.*\+ line \[2\]")
+        out = fsjd(doctype(description="a\nline [2]"), doctype(), table_mode=1)
+        self.assertRegex(out, r"(?s)- a\s.*- line \[2\]")
 
 
 if __name__ == "__main__":
