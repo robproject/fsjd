@@ -18,13 +18,13 @@ SCRIPT = Path(__file__).resolve().parent.parent / "frappe_schema_json_diff.py"
 ABSENT = object()  # the side of an added or deleted file that git gives as /dev/null
 
 
-def fsjd(base, head, table_mode=0, renamed_from="") -> str:
+def fsjd(base, head, table_mode=0, renamed_from="", path="doc.json") -> str:
     with tempfile.TemporaryDirectory() as tmp:
         old, new = Path(tmp, "old_doc.json"), Path(tmp, "doc.json")
         # path old-file old-hex old-mode new-file new-hex new-mode [new-path xfrm-msg]
-        args = ["doc.json", old, "1" * 40, "100644", new, "2" * 40, "100644"]
+        args = [path, old, "1" * 40, "100644", new, "2" * 40, "100644"]
         if renamed_from:
-            args = [renamed_from, *args[1:], "doc.json", "similarity index 90%"]
+            args = [renamed_from, *args[1:], path, "similarity index 90%"]
         for i, (side, value) in ((1, (old, base)), (4, (new, head))):
             if value is ABSENT:
                 args[i : i + 3] = [os.devnull, ".", "."]
@@ -49,6 +49,12 @@ def doctype(**kwargs) -> dict:
 def line_of(obj, text: str) -> int:
     # 1-based line of text in obj written as the tests write files
     return json.dumps(obj, indent=1).splitlines().index(text) + 1
+
+
+def record_starts(records: list) -> "list[int]":
+    # 1-based first line of each record in a records file as the tests write it
+    lines = json.dumps(records, indent=1).splitlines()
+    return [i + 1 for i, line in enumerate(lines) if line == " {"]
 
 
 class TestLineNumbers(unittest.TestCase):
@@ -450,21 +456,30 @@ class TestAddedDeleted(unittest.TestCase):
         self.assertRegex(out, r"\+ \d+ module : Stock")
         self.assertNotIn("- ", out)
 
-    def test_deleted_file_shows_its_contents(self):
-        out = fsjd(self.new_doctype, ABSENT)
-        self.assertIn("Removed: doc.json", out)
-        self.assertRegex(out, r"- \d+ qty\s+.*- fieldname : qty")
-        self.assertRegex(out, r"- \d+ module : Stock")
-        self.assertNotIn("+ ", out)
+    def test_deleted_document_shows_its_name(self):
+        for table_mode in (0, 1):
+            out = fsjd(self.new_doctype, ABSENT, table_mode=table_mode)
+            self.assertIn("Removed: doc.json", out)
+            self.assertRegex(out, r"- 1\s+(│ )?DocType: Test Doc")
+            for content in ("qty", "Stock", "System Manager", "+ "):
+                self.assertNotIn(content, out)
+
+    def test_deleted_customizations(self):
+        custom = {
+            "doctype": "Item",
+            "custom_fields": [{"fieldname": "x"}],
+            "property_setters": [],
+        }
+        self.assertRegex(fsjd(custom, ABSENT), r"- 1 Customizations: Item")
 
     def test_multi_line_values_are_marked_line_by_line(self):
-        out = fsjd(self.new_doctype, ABSENT)
-        self.assertRegex(out, r"- default\s+.*- line 1\s+.*- line \[2\]")
+        out = fsjd(ABSENT, self.new_doctype)
+        self.assertRegex(out, r"\+ default\s+.*\+ line 1\s+.*\+ line \[2\]")
         html = "<div>\n  {{ doc.name }}\n</div>"
         out = fsjd(ABSENT, print_format(html))
         self.assertRegex(out, r"\+ \d+ html\s+.*@@ -0,0 \+1,3 @@\s+.*\+ <div>")
 
-    def test_deleted_print_format_layout(self):
+    def test_added_print_format_layout(self):
         layout = [
             {
                 "fieldname": "heading",
@@ -474,17 +489,168 @@ class TestAddedDeleted(unittest.TestCase):
             {"fieldtype": "Section Break"},
         ]
         out = fsjd(
-            {"doctype": "Print Format", "format_data": json.dumps(layout)}, ABSENT
+            ABSENT, {"doctype": "Print Format", "format_data": json.dumps(layout)}
         )
         self.assertRegex(
-            out, r"format_data\s+.*- \d+ Custom HTML\s+.*- fieldname : heading"
+            out, r"format_data\s+.*\+ \d+ Custom HTML\s+.*\+ fieldname : heading"
         )
-        self.assertRegex(out, r"- options\s+.*- <h1>\s+.*- \{\{ doc.name \}\}")
-        self.assertRegex(out, r"- \d+ Section Break")
+        self.assertRegex(out, r"\+ options\s+.*\+ <h1>\s+.*\+ \{\{ doc.name \}\}")
+        self.assertRegex(out, r"\+ \d+ Section Break")
 
-    def test_added_fixture_list(self):
-        out = fsjd(ABSENT, [{"doctype": "Role", "name": "Packer", "desk_access": 1}])
-        self.assertRegex(out, r"(?s)\+ \d+ Packer\s.*\+ desk_access : 1")
+    def test_fixtures_list_their_records(self):
+        roles = [
+            {"doctype": "Role", "name": "Packer", "desk_access": 1},
+            {"doctype": "Workspace", "title": "Shipping", "content": "[]"},
+            {"doctype": "Item"},
+            {
+                "doctype": "Workspace Link",
+                "name": "vc5r",
+                "parent": "CRM",
+                "label": "Reports",
+            },
+        ]
+        # each record's first line in the file as the tests write it
+        starts = [
+            i + 1
+            for i, l in enumerate(json.dumps(roles, indent=1).splitlines())
+            if l == " {"
+        ]
+        for sign, base, head in (("+", ABSENT, roles), ("-", roles, ABSENT)):
+            out = fsjd(base, head)
+            for start, title in zip(
+                starts,
+                (
+                    "Role: Packer",
+                    "Workspace: Shipping",
+                    "Item: (no name)",
+                    "Workspace Link in CRM: Reports",
+                ),
+            ):
+                self.assertRegex(out, rf"{re.escape(f'{sign} {start} {title}')} *\n")
+            self.assertNotIn("desk_access", out)
+        out = fsjd(ABSENT, roles, table_mode=1)
+        self.assertIn("Role: Packer", out)
+        self.assertNotIn("desk_access", out)
+
+    def test_record_titles(self):
+        records = [
+            {"doctype": "Workspace", "name": "N", "title": "T"},
+            {"doctype": "Item", "item_code": "_Test Item"},
+            {"doctype": "User", "email": "a@example.com"},
+            {"doctype": "Dunning Type", "dunning_type": "First Notice"},
+            {"doctype": "Academic Term", "academic_term_name": "2026"},
+            {"doctype": "Note", "name": "[bold]x[/bold] \\"},
+            {"doctype": "Note", "title": "two\nlines"},
+        ]
+        for table_mode in (0, 1):
+            out = fsjd(ABSENT, records, table_mode=table_mode)
+            for title in (
+                "Workspace: N",
+                "Item: _Test Item",
+                "User: a@example.com",
+                "Dunning Type: First Notice",
+                "Academic Term: 2026",
+                "Note: [bold]x[/bold] \\",
+                "Note: two lines",
+            ):
+                self.assertIn(title, out)
+            self.assertNotIn("\\\\", out)
+
+    def test_test_records_without_doctype(self):
+        records = [{"item_code": "_Test Item"}, {"title": "Other"}]
+        out = fsjd(records, ABSENT, path="stock/doctype/item/test_records.json")
+        self.assertRegex(out, r"- \d+ _Test Item\s")
+        self.assertRegex(out, r"- \d+ Other\s")
+        self.assertIn("not a Frappe document", fsjd(records, ABSENT))  # elsewhere
+
+    def test_many_records_are_counted(self):
+        rows = [
+            {"doctype": "Workspace Link", "parent": p, "label": f"L{i}"}
+            for p in ("Stock", "CRM")
+            for i in range(30)
+        ]
+        fields = [
+            {"doctype": "Custom Field", "dt": "Item", "fieldname": f"f{i}"}
+            for i in range(5)
+        ]
+        for table_mode in (0, 1):
+            out = fsjd(rows + fields, ABSENT, table_mode=table_mode)
+            for group in (
+                "Workspace Link in Stock: 30 records",
+                "Workspace Link in CRM: 30 records",
+                "Custom Field for Item: 5 records",
+            ):
+                self.assertIn(group, out)
+            self.assertNotIn("L1", out)
+        self.assertIn("L1", fsjd(rows[:50], ABSENT))  # up to 50 are listed
+
+    def test_no_records(self):
+        self.assertIn("+ no records", fsjd(ABSENT, []))
+
+    def test_fixtures_gaining_or_losing_a_few_records_show_them(self):
+        kept = [{"doctype": "Role", "name": "Kept"}]
+        new = [{"doctype": "Role", "name": f"R{i}", "desk_access": 1} for i in range(5)]
+        for table_mode in (0, 1):
+            out = fsjd(kept, kept + new, table_mode=table_mode)
+            self.assertEqual(out.count("desk_access"), 5, out)  # whole
+            out = fsjd(kept + new[:2], kept + new[2:], table_mode=table_mode)
+            self.assertEqual(out.count("desk_access"), 5, out)  # 2 lost + 3 gained
+
+    def test_fixtures_gaining_or_losing_more_name_them(self):
+        kept = [{"doctype": "Role", "name": "Kept", "desk_access": 0}]
+        lost = [
+            {"doctype": "Role", "name": f"Old{i}", "desk_access": 1} for i in range(3)
+        ]
+        gained = [
+            {"doctype": "Role", "name": f"New{i}", "desk_access": 1} for i in range(3)
+        ]
+        base, head = kept + lost, [{**kept[0], "desk_access": 1}] + gained
+        out = fsjd(base, head)
+        self.assertIn("desk_access : 0 => 1", out)  # a kept record still diffs
+        for i in range(3):
+            self.assertRegex(out, rf"- {record_starts(base)[i + 1]} Role: Old{i} *\n")
+            self.assertRegex(out, rf"\+ {record_starts(head)[i + 1]} Role: New{i} *\n")
+        self.assertEqual(out.count("desk_access"), 1, out)
+        out = fsjd(base, head, table_mode=1)
+        self.assertIn("Role: New2", out)
+        self.assertNotIn("VALUES BELOW", out)  # no record whole
+
+    def test_fixtures_gaining_or_losing_many_count_them(self):
+        rows = [
+            {
+                "doctype": "Workspace Link",
+                "name": f"h{i}",
+                "parent": "Stock",
+                "label": f"L{i}",
+            }
+            for i in range(60)
+        ]
+        for base in ([], [{"doctype": "Role", "name": "Kept"}]):
+            out = fsjd(base, base + rows)
+            self.assertIn("+ Workspace Link in Stock: 60 records", out)
+            self.assertNotIn("L1", out)
+
+    def test_only_a_fixtures_file_is_summarised(self):
+        # a DocType's fields gaining many rows still show them whole
+        fields = [{"fieldname": f"f{i}", "fieldtype": "Data"} for i in range(8)]
+        out = fsjd(doctype(), doctype(fields=fields))
+        self.assertEqual(out.count("fieldtype : Data"), 8, out)
+        # and so do the child rows of a record in a fixtures file
+        links = [{"link_to": f"D{i}", "link_type": "DocType"} for i in range(8)]
+        workspace = {"doctype": "Workspace", "name": "Stock", "links": []}
+        out = fsjd([workspace], [{**workspace, "links": links}])
+        self.assertEqual(out.count("link_type : DocType"), 8, out)
+
+    def test_other_json_shows_its_size(self):
+        # the file's own lines, as written
+        chart = '{\n\n "Assets": {"Current": {"Cash": {"account_type": "Cash"}}}\n}\n'
+        for sign, base, head in (("+", ABSENT, chart), ("-", chart, ABSENT)):
+            for table_mode in (0, 1):
+                out = fsjd(base, head, table_mode=table_mode)
+                self.assertIn("not a Frappe document: 4 lines", out)
+                self.assertIn(sign, out)
+                self.assertNotIn("Cash", out)
+        self.assertIn("+ not a Frappe document: 1 line", fsjd(ABSENT, 42))
 
     def test_table_mode(self):
         out = fsjd(ABSENT, self.new_doctype, table_mode=1)
@@ -515,9 +681,8 @@ class TestAddedDeleted(unittest.TestCase):
         self.assertIn("can't be shown: JSONDecodeError", out)
 
     def test_file_that_is_a_scalar(self):
-        self.assertRegex(fsjd(ABSENT, 42), r"\+ 42\s")
-        self.assertRegex(fsjd(None, ABSENT), r"- None\s")
         self.assertIn("1 => 2", fsjd(1, 2))
+        self.assertIn("- not a Frappe document: 1 line", fsjd(None, ABSENT))
 
     def test_empty_values_are_shown(self):
         head = doctype(

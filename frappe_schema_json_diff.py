@@ -25,17 +25,24 @@ class FrappeDiff:
     only: str = ""  # "+" for an added file, "-" for a deleted one
 
     def prep(self) -> None:
-        # An added or deleted file is diffed against a hollow copy of itself (see hollow),
-        # so its contents show as added or removed.
+        # An added Frappe document is shown whole: diffed against a hollow copy of itself
+        # (see hollow), all of it shows as added. Other added or deleted files are summed
+        # up instead (see sum_up).
+        self.whole = self.records_file = False
         if self.only == "+":
             self.head_obj, self.head_ln = self.get_file(self.new_path)
-            self.base_obj, self.base_ln = hollow_file(self.head_obj)
+            self.whole = shape(self.head_obj, self.name) == "document"
+            if self.whole:
+                self.base_obj, self.base_ln = hollow_file(self.head_obj)
         elif self.only == "-":
             self.base_obj, self.base_ln = self.get_file(self.old_path)
-            self.head_obj, self.head_ln = hollow_file(self.base_obj)
         else:
             self.base_obj, self.base_ln = self.get_file(self.old_path)
             self.head_obj, self.head_ln = self.get_file(self.new_path)
+            self.records_file = all(
+                shape(obj, self.name) == "records"
+                for obj in (self.base_obj, self.head_obj)
+            )
         self.make_label()
         if self.print_table:
             self.prep_table()
@@ -65,7 +72,10 @@ class FrappeDiff:
         self.table = table
 
     def print(self):
-        if isinstance(self.base_obj, list):
+        if self.only and not self.whole:
+            self.tree = Tree("")
+            self.sum_up()
+        elif isinstance(self.base_obj, list):
             self.tree = self.list_diff(
                 self.name,
                 self.base_obj,
@@ -80,12 +90,8 @@ class FrappeDiff:
         else:
             # a file that's just a JSON scalar
             self.tree = Tree("")
-            b_val, h_val = escape(f"{self.base_obj}"), escape(f"{self.head_obj}")
-            if self.only:
-                color = "green" if self.only == "+" else "red"
-                value = h_val if self.only == "+" else b_val
-                self.tree.add(f"[{color}]{self.only} {value}[/{color}]")
-            elif self.base_obj != self.head_obj:
+            if self.base_obj != self.head_obj:
+                b_val, h_val = escape(f"{self.base_obj}"), escape(f"{self.head_obj}")
                 self.tree.add(f"[red]{b_val}[/red] => [green]{h_val}[/green]")
         self.tree.label = self.label
         if self.tree.children:
@@ -94,6 +100,36 @@ class FrappeDiff:
             console.log(self.table)
         else:
             console.log(f"[bold]{self.label}[/bold]")
+
+    def sum_up(self) -> None:
+        # An added or deleted file other than an added document: the documents in it by
+        # name, or for JSON that isn't Frappe documents, its size.
+        obj, ln = (
+            (self.head_obj, self.head_ln)
+            if self.only == "+"
+            else (self.base_obj, self.base_ln)
+        )
+        if (kind := shape(obj, self.name)) == "document":
+            entries = [("", doc_title(obj))]
+        elif kind == "records":
+            entries = record_entries(list(enumerate(obj))) or [(None, "no records")]
+        else:
+            lines = len(ln.json_str.splitlines())
+            entries = [(None, f"not a Frappe document: {plural(lines, 'line')}")]
+        self.add_entries(self.tree, self.only, ln, entries)
+
+    def add_entries(self, tree: Tree, sign: str, ln: "LineNos", entries: list) -> None:
+        # (path or None, text) lines that name or count records rather than show them
+        color = "green" if sign == "+" else "red"
+        for path, text in entries:
+            # Text, not markup: titles are data
+            mark = f"{sign} " + ("" if path is None else f"{ln.val(path)} ")
+            if self.print_table:
+                self.table.add_row(
+                    Text(mark + (path or ""), style="bold"), Text(text), "", style=color
+                )
+            else:
+                tree.add(Text(mark, style=f"bold {color}") + Text(text, style=color))
 
     def dict_diff(
         self,
@@ -240,11 +276,11 @@ class FrappeDiff:
         # of both whole values; hunk line numbers are within the value.
         b_line = f"[bold red]{self.base_ln.key(self.conc_b_path)}[/bold red]"
         h_line = f"[bold green]{self.head_ln.key(self.conc_h_path)}[/bold green]"
-        # In an added or deleted file, only one side's line numbers are real.
-        lines = {
-            "+": f"[bold green]+[/bold green] {h_line}",
-            "-": f"[bold red]-[/bold red] {b_line}",
-        }.get(self.only, f"{b_line} => {h_line}")
+        # In an added file, only the new side's line numbers are real.
+        if self.only == "+":
+            lines = f"[bold green]+[/bold green] {h_line}"
+        else:
+            lines = f"{b_line} => {h_line}"
         if self.print_table:
             for hunk in hunks:
                 self.table.add_row(
@@ -274,6 +310,16 @@ class FrappeDiff:
                 base_keys = keys_of(base_list, common_key)
                 head_keys = keys_of(head_list, common_key)
                 pairs = key_pairs(base_list, head_list, base_keys, head_keys)
+                paired = set(pairs.values())
+                removed = [i for i in range(len(base_list)) if i not in pairs]
+                added = [j for j in range(len(head_list)) if j not in paired]
+                # The records a fixtures file gains or loses are shown whole if there are
+                # only a few, else named or counted (see record_entries).
+                brief = (
+                    not b_path
+                    and self.records_file
+                    and len(removed) + len(added) > RECORDS_SHOWN
+                )
                 for i, bd in enumerate(base_list):
                     conc_b_path = f"{b_path}/{i}"
                     if (j := pairs.get(i)) is not None:
@@ -286,15 +332,24 @@ class FrappeDiff:
                         )
                         if rtree.children:
                             list_tree.add(rtree)
-                    else:
+                    elif not brief:
                         self.red_dict(
                             bd, conc_b_path, list_tree, key_label(base_keys[i])
                         )
-                paired = set(pairs.values())
-                for j, hd in enumerate(head_list):
-                    if j not in paired:
+                if brief:
+                    for sign, ln, side, indexes in (
+                        ("-", self.base_ln, base_list, removed),
+                        ("+", self.head_ln, head_list, added),
+                    ):
+                        entries = record_entries([(i, side[i]) for i in indexes])
+                        self.add_entries(list_tree, sign, ln, entries)
+                else:
+                    for j in added:
                         self.grn_dict(
-                            hd, f"{h_path}/{j}", list_tree, key_label(head_keys[j])
+                            head_list[j],
+                            f"{h_path}/{j}",
+                            list_tree,
+                            key_label(head_keys[j]),
                         )
             else:
                 self.aligned_diff(list_tree, base_list, head_list, b_path, h_path)
@@ -617,8 +672,8 @@ def depth(value) -> int:
 
 def hollow(value):
     # The containers of a value with nothing in them and no scalars: diffed against it,
-    # every value shows as added (or removed). Text keeps an empty string, so it shows as
-    # lines, and JSON in a string an empty JSON container, so it shows as structure.
+    # every value shows as added. Text keeps an empty string, so it shows as lines, and
+    # JSON in a string an empty JSON container, so it shows as structure.
     # Empty containers are left out, like scalars, so they show as values: "x : []".
     if type(value) is dict:
         return {
@@ -637,10 +692,73 @@ def hollow(value):
     return None
 
 
-def hollow_file(obj) -> "tuple":
-    shell = hollow(obj)
-    shell = obj if shell is None else shell
+def hollow_file(doc: dict) -> "tuple":
+    shell = hollow(doc)
     return shell, LineNos(json.dumps(shell, indent=1))
+
+
+# Records a fixtures file gains or loses are shown whole up to RECORDS_SHOWN, named up to
+# RECORDS_LISTED, and counted beyond that. Records in an added or deleted file are named.
+RECORDS_SHOWN = 5
+RECORDS_LISTED = 50
+
+
+def record_entries(indexed: "list[tuple[int, dict]]") -> list:
+    # (path, title) per (index, record), or past RECORDS_LISTED, (None, count) per group
+    if len(indexed) <= RECORDS_LISTED:
+        return [(f"/{i}", doc_title(doc)) for i, doc in indexed]
+    groups = Counter(record_group(doc) for _, doc in indexed)
+    return [(None, f"{g}: {plural(n, 'record')}") for g, n in groups.items()]
+
+
+def shape(obj, file_name: str = "") -> str:
+    # "document": one Frappe document (a DocType, Report, Print Format, Workspace, a
+    # customize file); "records": a list of them (fixtures, test records, whose doctype
+    # Frappe may take from their folder); else "other", e.g. a chart of accounts.
+    if type(obj) is dict:
+        return "document" if "doctype" in obj else "other"
+    if type(obj) is list and all(
+        type(d) is dict and ("doctype" in d or file_name == "test_records.json")
+        for d in obj
+    ):
+        return "records"
+    return "other"
+
+
+def doc_title(doc: dict) -> str:
+    # A child table row (a Workspace Link, say) is named by a hash: use its label, and
+    # say whose row it is. A test record often has no name: try the fields that name
+    # one of its doctype.
+    doctype = doc.get("doctype")
+    scrubbed = f"{doctype}".lower().replace(" ", "_").replace("-", "_")
+    keys = (
+        ("label", "title", "name") if doc.get("parent") else ("name", "title", "label")
+    )
+    keys += (f"{scrubbed}_name", scrubbed, "item_code", "email", "subject")
+    name = next((doc[k] for k in keys if doc.get(k)), None)
+    if name is None and ("custom_fields" in doc or "property_setters" in doc):
+        title = f"Customizations: {doctype}"
+    else:
+        title = f"{name}" if name is not None else "(no name)"
+        if doctype is not None:
+            parent = f" in {doc['parent']}" if doc.get("parent") else ""
+            title = f"{doctype}{parent}: {title}"
+    return " ".join(title.split())  # one line
+
+
+def record_group(doc: dict) -> str:
+    # what a record belongs to: a child row's parent, a Custom Field's or Property
+    # Setter's doctype
+    group = f"{doc.get('doctype', 'Record')}"
+    if doc.get("parent"):
+        group += f" in {doc['parent']}"
+    if for_doctype := doc.get("dt") or doc.get("doc_type"):
+        group += f" for {for_doctype}"
+    return " ".join(group.split())
+
+
+def plural(n: int, noun: str) -> str:
+    return f"{n} {noun}{'s' * (n != 1)}"
 
 
 def json_notes(b_val, h_val) -> "list[Text]":
