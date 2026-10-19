@@ -693,6 +693,129 @@ class TestAddedDeleted(unittest.TestCase):
         self.assertEqual(len(re.findall(r"- \d+ Role in P: Same", out)), 2, out)
         self.assertRegex(out, r"\+ \d+ Role in P: Same")
 
+    def test_moved_rows_show_as_order_changes(self):
+        # links moved between a Workspace's cards: Frappe exports rows in order, no idx
+        def rows(labels, prefix):
+            return [
+                {
+                    "doctype": "Workspace Link",
+                    "name": f"{prefix}{i}",
+                    "parent": "Stock",
+                    "label": l,
+                }
+                for i, l in enumerate(labels)
+            ]
+
+        base = rows(["A", "L1", "L2", "B", "L3", "L4"], "h")
+        head = rows(["A", "L1", "L3", "B", "L2", "L4"], "g")
+        for table_mode in (0, 1):
+            out = fsjd(base, head, table_mode=table_mode)
+            self.assertIn("6 records renamed only", out)
+            self.assertIn("order changed: Workspace Link in Stock", out)
+            self.assertRegex(out, r"(?s)(- L2.*\+ L2|\+ L3.*- L3)")
+        self.assertNotIn(
+            "order changed", fsjd(base, rows(["A", "L1", "L2", "B", "L3", "L4"], "g"))
+        )
+
+    def test_new_row_after_renames_is_shown_whole(self):
+        def row(name, label):
+            return {
+                "doctype": "Workspace Link",
+                "name": name,
+                "parent": "Stock",
+                "label": label,
+            }
+
+        base = [row(f"h{i}", f"L{i}") for i in range(10)]
+        head = [row(f"g{i}", f"L{i}") for i in range(10)] + [row("g10", "New Link")]
+        out = fsjd(
+            base, head
+        )  # 11 rows gained, 10 of them renames: 1 is under RECORDS_SHOWN
+        self.assertIn("+ label : New Link", out)
+
+    def test_row_moved_to_another_parent_is_not_a_rename(self):
+        lost = {
+            "doctype": "Workspace Link",
+            "name": "h1",
+            "parent": "Stock",
+            "label": "L1",
+        }
+        out = fsjd([lost], [{**lost, "name": "g1", "parent": "CRM"}])
+        self.assertNotIn("renamed only", out)
+        self.assertRegex(out, r"- \d+ Workspace Link in Stock: L1")
+        self.assertRegex(out, r"\+ \d+ Workspace Link in CRM: L1")
+
+    def test_title_pairs_are_one_to_one(self):
+        lost = {
+            "doctype": "Workspace Link",
+            "name": "h1",
+            "parent": "Stock",
+            "label": "X",
+            "v": 0,
+        }
+        gained = [{**lost, "name": f"g{i}", "v": i + 1} for i in range(2)]
+        out = fsjd([lost], gained)
+        self.assertRegex(out, r"- \d+ Workspace Link in Stock: X")
+        self.assertEqual(
+            len(re.findall(r"\+ \d+ Workspace Link in Stock: X", out)), 2, out
+        )
+
+    def test_records_without_a_parent_are_not_paired_by_title(self):
+        other = {"doctype": "Item", "item_code": "C", "item_name": "Other"}
+        base = [{"doctype": "Item", "item_code": "A", "item_name": "Widget"}, other]
+        head = [{"doctype": "Item", "item_code": "B", "item_name": "Widget"}, other]
+        out = fsjd(base, head, path="stock/doctype/item/test_records.json")
+        self.assertNotIn("item_code : A => B", out)
+        self.assertRegex(out, r"- \d+ Item: Widget")
+        self.assertRegex(out, r"\+ \d+ Item: Widget")
+
+    def test_nameless_records_keep_their_key(self):
+        base = [{"doctype": "Leave Allocation", "employee": "_T-0001", "leaves": 1}]
+        out = fsjd(
+            base, [{**base[0], "leaves": 2}], path="hr/doctype/x/test_records.json"
+        )
+        self.assertIn("leaves : 1 => 2", out)
+        self.assertNotIn("(no name)", out)
+
+    def test_rows_renamed_and_changed_alike_are_told_once(self):
+        # e.g. a Frappe upgrade adds a field to every exported Workspace Link
+        def rows(prefix, extra, n):
+            return [
+                {
+                    "doctype": "Workspace Link",
+                    "name": f"{prefix}{i}",
+                    "parent": "Stock",
+                    "label": f"L{i}",
+                    **extra,
+                }
+                for i in range(n)
+            ]
+
+        for table_mode in (0, 1):
+            out = fsjd(
+                rows("h", {"v": 0}, 8),
+                rows("g", {"v": 0, "new_field": 1}, 8),
+                table_mode=table_mode,
+            )
+            self.assertIn("8 records renamed, each with these changes", out)
+            self.assertIn("+ new_field : 1", out)
+            self.assertNotIn("L3", out)
+            out = fsjd(
+                rows("h", {"v": 0}, 8), rows("g", {"v": 2}, 8), table_mode=table_mode
+            )
+            self.assertIn("v : 0 => 2", out)
+        out = fsjd(rows("h", {"v": 0}, 5), rows("g", {"v": 2}, 5))  # a few: one by one
+        self.assertNotIn("each with these changes", out)
+        self.assertEqual(out.count("v : 0 => 2"), 5, out)
+        out = fsjd(rows("h", {"v": 0}, 6), rows("g", {"v": 2}, 6))
+        self.assertIn("6 records renamed, each with these changes", out)
+
+    def test_renames_only_at_the_top_of_a_fixtures_file(self):
+        row = {"name": "a", "parent": "W", "v": 1}
+        workspace = {"doctype": "Workspace", "name": "W", "custom_rows": [row]}
+        out = fsjd([workspace], [{**workspace, "custom_rows": [{**row, "name": "b"}]}])
+        self.assertNotIn("renamed only", out)
+
     def test_only_a_fixtures_file_is_summarised(self):
         # a DocType's fields gaining many rows still show them whole
         fields = [{"fieldname": f"f{i}", "fieldtype": "Data"} for i in range(8)]
