@@ -313,6 +313,26 @@ class FrappeDiff:
                 paired = set(pairs.values())
                 removed = [i for i in range(len(base_list)) if i not in pairs]
                 added = [j for j in range(len(head_list)) if j not in paired]
+                renamed = 0
+                if not b_path and self.records_file:  # same test as top_records below
+                    # Re-exporting gives child rows new random names: a row lost and one
+                    # gained that are otherwise the same were only renamed.
+                    removed, added, renamed = drop_renames(
+                        base_list, head_list, removed, added
+                    )
+                    # and one renamed that changed too keeps its title: diff the two
+                    by_title = pair_by_title(base_list, head_list, removed, added)
+                    pairs.update(by_title)
+                    removed = [i for i in removed if i not in by_title]
+                    added = [j for j in added if j not in by_title.values()]
+                lost = set(removed)
+                # a fixtures file's records are labelled as when named (see doc_title),
+                # rather than by a child row's random name
+                top_records = not b_path and self.records_file
+
+                def label(records: list, keys: list, i: int) -> str:
+                    return doc_title(records[i]) if top_records else key_label(keys[i])
+
                 # The records a fixtures file gains or loses are shown whole if there are
                 # only a few, else named or counted (see record_entries).
                 brief = (
@@ -324,7 +344,7 @@ class FrappeDiff:
                     conc_b_path = f"{b_path}/{i}"
                     if (j := pairs.get(i)) is not None:
                         rtree = self.dict_diff(
-                            key_label(base_keys[i]),
+                            label(base_list, base_keys, i),
                             bd,
                             head_list[j],
                             conc_b_path,
@@ -332,10 +352,18 @@ class FrappeDiff:
                         )
                         if rtree.children:
                             list_tree.add(rtree)
-                    elif not brief:
+                    elif i in lost and not brief:
                         self.red_dict(
-                            bd, conc_b_path, list_tree, key_label(base_keys[i])
+                            bd, conc_b_path, list_tree, label(base_list, base_keys, i)
                         )
+                if renamed:
+                    note = Text(
+                        f"{plural(renamed, 'record')} renamed only", style="dim"
+                    )
+                    if self.print_table:
+                        self.table.add_row("", note, "")
+                    else:
+                        list_tree.add(note)
                 if brief:
                     for sign, ln, side, indexes in (
                         ("-", self.base_ln, base_list, removed),
@@ -349,7 +377,7 @@ class FrappeDiff:
                             head_list[j],
                             f"{h_path}/{j}",
                             list_tree,
-                            key_label(head_keys[j]),
+                            label(head_list, head_keys, j),
                         )
             else:
                 self.aligned_diff(list_tree, base_list, head_list, b_path, h_path)
@@ -701,6 +729,42 @@ def hollow_file(doc: dict) -> "tuple":
 # RECORDS_LISTED, and counted beyond that. Records in an added or deleted file are named.
 RECORDS_SHOWN = 5
 RECORDS_LISTED = 50
+
+
+# What a re-export changes in a record it only renames
+RENAME_FIELDS = ("name", "modified", "creation", "owner", "modified_by")
+
+
+def drop_renames(base_list: list, head_list: list, removed: list, added: list) -> tuple:
+    # Match each lost child table row (a record with a parent, named at random) to a gained
+    # one with the same content but for RENAME_FIELDS: (records still lost, records still
+    # gained, how many were matched). Other records' names are what they are: a renamed
+    # Role is a change.
+    def content(record: dict) -> str:
+        return canonical({k: v for k, v in record.items() if k not in RENAME_FIELDS})
+
+    gained = defaultdict(list)
+    for j in added:
+        gained[content(head_list[j])].append(j)  # parent is content: rows match rows
+    still_removed, matched = [], set()
+    for i in removed:
+        if base_list[i].get("parent") and (same := gained.get(content(base_list[i]))):
+            matched.add(same.pop(0))
+        else:
+            still_removed.append(i)
+    return still_removed, [j for j in added if j not in matched], len(matched)
+
+
+def pair_by_title(base_list: list, head_list: list, removed: list, added: list) -> dict:
+    # lost index -> gained index, for titles (see doc_title) only one of each has
+    lost = Counter(doc_title(base_list[i]) for i in removed)
+    gained = Counter(doc_title(head_list[j]) for j in added)
+    gained_at = {doc_title(head_list[j]): j for j in added}
+    return {
+        i: gained_at[title]
+        for i in removed
+        if lost[title := doc_title(base_list[i])] == 1 and gained[title] == 1
+    }
 
 
 def record_entries(indexed: "list[tuple[int, dict]]") -> list:

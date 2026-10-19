@@ -630,6 +630,69 @@ class TestAddedDeleted(unittest.TestCase):
             self.assertIn("+ Workspace Link in Stock: 60 records", out)
             self.assertNotIn("L1", out)
 
+    def test_renamed_records(self):
+        # a re-export: same rows, new random names and timestamps, one row really new
+        def row(name, label, modified="2025-01-01"):
+            return {
+                "doctype": "Workspace Link",
+                "name": name,
+                "parent": "Stock",
+                "label": label,
+                "modified": modified,
+            }
+
+        base = [row(f"h{i}", f"L{i}") for i in range(10)]
+        head = [row(f"g{i}", f"L{i}", "2025-02-02") for i in range(10)]
+        head.append(row("g10", "New Link"))
+        for table_mode in (0, 1):
+            out = fsjd(base, head + [], table_mode=table_mode)
+            self.assertIn("10 records renamed only", out)
+            self.assertIn("Workspace Link in Stock: New Link", out)
+            self.assertNotIn("L3", out)
+            self.assertNotIn("h3", out)
+        self.assertRegex(
+            fsjd(base, head), r"\+ \d+ Workspace Link in Stock: New Link\s"
+        )
+
+    def test_renamed_record_that_also_changed(self):
+        lost = {
+            "doctype": "Workspace Shortcut",
+            "name": "a1",
+            "parent": "CRM",
+            "label": "Sales",
+            "color": "Grey",
+            "idx": 1,
+        }
+        out = fsjd([lost], [{**lost, "name": "b2", "color": "Blue"}])
+        self.assertRegex(out, r"Workspace Shortcut in CRM: Sales\s+.*name : a1 => b2")
+        self.assertIn("color : Grey => Blue", out)
+        self.assertNotIn("renamed only", out)
+        # idx counts: a row moved as well as renamed isn't only renamed
+        out = fsjd([lost], [{**lost, "name": "b2", "idx": 2}])
+        self.assertIn("idx : 1 => 2", out)
+        self.assertNotIn("renamed only", out)
+
+    def test_renamed_record_without_a_parent_is_a_change(self):
+        out = fsjd(
+            [{"doctype": "Role", "name": "Packer"}],
+            [{"doctype": "Role", "name": "Loader"}],
+        )
+        self.assertNotIn("renamed only", out)
+        self.assertRegex(out, r"- \d+ Role: Packer")
+        self.assertRegex(out, r"\+ \d+ Role: Loader")
+
+    def test_repeated_titles_are_not_paired(self):
+        lost = [
+            {"doctype": "Role", "name": f"x{i}", "parent": "P", "label": "Same", "n": i}
+            for i in range(2)
+        ]
+        gained = [
+            {"doctype": "Role", "name": "y", "parent": "P", "label": "Same", "n": 9}
+        ]
+        out = fsjd(lost, gained)
+        self.assertEqual(len(re.findall(r"- \d+ Role in P: Same", out)), 2, out)
+        self.assertRegex(out, r"\+ \d+ Role in P: Same")
+
     def test_only_a_fixtures_file_is_summarised(self):
         # a DocType's fields gaining many rows still show them whole
         fields = [{"fieldname": f"f{i}", "fieldtype": "Data"} for i in range(8)]
