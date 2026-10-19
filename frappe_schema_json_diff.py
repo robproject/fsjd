@@ -313,18 +313,37 @@ class FrappeDiff:
                 paired = set(pairs.values())
                 removed = [i for i in range(len(base_list)) if i not in pairs]
                 added = [j for j in range(len(head_list)) if j not in paired]
+                # At the top of a fixtures file, records are labelled as when named (see
+                # doc_title) rather than by a child row's random name, and child rows a
+                # re-export only renamed are matched (see drop_renames).
+                top_records = not b_path and self.records_file
+                renames, by_title, alike = {}, {}, []
+                if top_records:
+                    removed, added, renames = drop_renames(
+                        base_list, head_list, removed, added
+                    )
+                    # a row renamed that also changed keeps its title: diff the two
+                    by_title = pair_by_title(base_list, head_list, removed, added)
+                    told, alike = alike_changes(base_list, head_list, by_title)
+                    pairs.update(told)
+                    retitled = set(by_title.values())
+                    removed = [i for i in removed if i not in by_title]
+                    added = [j for j in added if j not in retitled]
+                lost = set(removed)
+
+                def label(records: list, keys: list, i: int) -> str:
+                    if top_records and record_name(records[i]) is not None:
+                        return doc_title(records[i])
+                    return key_label(keys[i])
+
                 # The records a fixtures file gains or loses are shown whole if there are
                 # only a few, else named or counted (see record_entries).
-                brief = (
-                    not b_path
-                    and self.records_file
-                    and len(removed) + len(added) > RECORDS_SHOWN
-                )
+                brief = top_records and len(removed) + len(added) > RECORDS_SHOWN
                 for i, bd in enumerate(base_list):
                     conc_b_path = f"{b_path}/{i}"
                     if (j := pairs.get(i)) is not None:
                         rtree = self.dict_diff(
-                            key_label(base_keys[i]),
+                            label(base_list, base_keys, i),
                             bd,
                             head_list[j],
                             conc_b_path,
@@ -332,10 +351,32 @@ class FrappeDiff:
                         )
                         if rtree.children:
                             list_tree.add(rtree)
-                    elif not brief:
+                    elif i in lost and not brief:
                         self.red_dict(
-                            bd, conc_b_path, list_tree, key_label(base_keys[i])
+                            bd, conc_b_path, list_tree, label(base_list, base_keys, i)
                         )
+                notes = []
+                if renames:
+                    notes.append(
+                        (Text(f"{plural(len(renames), 'record')} renamed only"), [])
+                    )
+                for n, changes in alike:
+                    heading = f"{plural(n, 'record')} renamed, each with these changes"
+                    notes.append((Text(heading), change_lines(changes)))
+                if top_records:
+                    for group, hunks in row_moves(
+                        base_list, head_list, {**pairs, **renames, **by_title}
+                    ):
+                        notes.append((Text(f"order changed: {group}"), hunks))
+                for note, hunks in notes:
+                    note.stylize("dim")
+                    if self.print_table:
+                        for hunk in hunks or [""]:
+                            self.table.add_row("", note, hunk)
+                    else:
+                        note_tree = list_tree.add(note)
+                        for hunk in hunks:
+                            note_tree.add(hunk)
                 if brief:
                     for sign, ln, side, indexes in (
                         ("-", self.base_ln, base_list, removed),
@@ -349,7 +390,7 @@ class FrappeDiff:
                             head_list[j],
                             f"{h_path}/{j}",
                             list_tree,
-                            key_label(head_keys[j]),
+                            label(head_list, head_keys, j),
                         )
             else:
                 self.aligned_diff(list_tree, base_list, head_list, b_path, h_path)
@@ -703,6 +744,114 @@ RECORDS_SHOWN = 5
 RECORDS_LISTED = 50
 
 
+# What a re-export changes in a record it only renames
+RENAME_FIELDS = ("name", "modified", "creation", "owner", "modified_by")
+
+
+def drop_renames(base_list: list, head_list: list, removed: list, added: list) -> tuple:
+    # Match each lost child table row (a record with a parent, named at random) to a gained
+    # one with the same content but for RENAME_FIELDS: (records still lost, records still
+    # gained, {lost index: gained index}). Other records' names are what they are: a
+    # renamed Role is a change.
+    def content(record: dict) -> str:
+        return canonical({k: v for k, v in record.items() if k not in RENAME_FIELDS})
+
+    gained = defaultdict(list)
+    for j in added:
+        gained[content(head_list[j])].append(j)  # parent is content: rows match rows
+    still_removed, matched = [], {}
+    for i in removed:
+        if base_list[i].get("parent") and (same := gained.get(content(base_list[i]))):
+            matched[i] = same.pop(0)
+        else:
+            still_removed.append(i)
+    renamed = set(matched.values())
+    return still_removed, [j for j in added if j not in renamed], matched
+
+
+def pair_by_title(base_list: list, head_list: list, removed: list, added: list) -> dict:
+    # lost index -> gained index, for named child rows whose title (see doc_title) only
+    # one lost and one gained row have
+    def titled(records: list, indexes: list) -> list:
+        return [
+            (i, doc_title(records[i]))
+            for i in indexes
+            if records[i].get("parent") and record_name(records[i]) is not None
+        ]
+
+    lost, gained = titled(base_list, removed), titled(head_list, added)
+    lost_n, gained_n = Counter(t for _, t in lost), Counter(t for _, t in gained)
+    gained_at = dict((t, j) for j, t in gained)
+    return {i: gained_at[t] for i, t in lost if lost_n[t] == 1 and gained_n[t] == 1}
+
+
+MISSING = object()
+
+
+def alike_changes(base_list: list, head_list: list, by_title: dict) -> tuple:
+    # Renamed rows changed the same way, more than RECORDS_SHOWN of them (by a field
+    # Frappe added to every Workspace Link, say), are told once: ({lost index: gained
+    # index} to diff one by one, [(how many, changes)]), a change being (key, old value or
+    # MISSING, new value or MISSING).
+    groups = defaultdict(list)
+    for i, j in by_title.items():
+        b, h = base_list[i], head_list[j]
+        changes = tuple(
+            (k, b.get(k, MISSING), h.get(k, MISSING))
+            for k in dict.fromkeys([*b, *h])
+            if k not in RENAME_FIELDS and (k not in b or k not in h or b[k] != h[k])
+        )
+        key = canonical(
+            [[k, k in b, b.get(k), k in h, h.get(k)] for k, _, _ in changes]
+        )
+        groups[key].append((i, j, changes))
+    told, alike = {}, []
+    for members in groups.values():
+        if len(members) > RECORDS_SHOWN:
+            alike.append((len(members), members[0][2]))
+        else:
+            told.update((i, j) for i, j, _ in members)
+    return told, alike
+
+
+def change_lines(changes: tuple) -> "list[Text]":
+    lines = []
+    for key, old, new in changes:
+        if old is MISSING:
+            lines.append(Text(f"+ {key} : {new}", style="green"))
+        elif new is MISSING:
+            lines.append(Text(f"- {key} : {old}", style="red"))
+        else:
+            lines.append(
+                Text.assemble(
+                    f"{key} : ", (f"{old}", "red"), " => ", (f"{new}", "green")
+                )
+            )
+    return lines
+
+
+def row_moves(base_list: list, head_list: list, pairs: dict) -> list:
+    # Frappe exports child rows in order and without idx, so a row moved (between a
+    # Workspace's cards, say) shows only in their order: per parent, a line diff of the
+    # names of the rows both versions have, where their order changed.
+    groups = defaultdict(list)
+    for i, j in sorted(pairs.items()):
+        if base_list[i].get("parent"):
+            groups[record_group(base_list[i])].append((i, j))
+    moves = []
+    for group, matched in groups.items():
+        before = [row_name(base_list[i]) for i, _ in matched]
+        after = [row_name(head_list[j]) for _, j in sorted(matched, key=lambda m: m[1])]
+        if before != after:
+            moves.append((group, text_hunks("\n".join(before), "\n".join(after))))
+    return moves
+
+
+def row_name(row: dict) -> str:
+    name = record_name(row)
+    return " ".join(f"{row.get('name') if name is None else name}".split())
+
+
 def record_entries(indexed: "list[tuple[int, dict]]") -> list:
     # (path, title) per (index, record), or past RECORDS_LISTED, (None, count) per group
     if len(indexed) <= RECORDS_LISTED:
@@ -725,17 +874,20 @@ def shape(obj, file_name: str = "") -> str:
     return "other"
 
 
-def doc_title(doc: dict) -> str:
-    # A child table row (a Workspace Link, say) is named by a hash: use its label, and
-    # say whose row it is. A test record often has no name: try the fields that name
-    # one of its doctype.
-    doctype = doc.get("doctype")
-    scrubbed = f"{doctype}".lower().replace(" ", "_").replace("-", "_")
+def record_name(doc: dict):
+    # A child table row (a Workspace Link, say) is named by a hash: use its label. A test
+    # record often has no name: try the fields that name one of its doctype.
+    scrubbed = f"{doc.get('doctype')}".lower().replace(" ", "_").replace("-", "_")
     keys = (
         ("label", "title", "name") if doc.get("parent") else ("name", "title", "label")
     )
     keys += (f"{scrubbed}_name", scrubbed, "item_code", "email", "subject")
-    name = next((doc[k] for k in keys if doc.get(k)), None)
+    return next((doc[k] for k in keys if doc.get(k)), None)
+
+
+def doc_title(doc: dict) -> str:
+    # e.g. "DocType: Customer Shipping Unit", "Workspace Link in CRM: Reports"
+    doctype, name = doc.get("doctype"), record_name(doc)
     if name is None and ("custom_fields" in doc or "property_setters" in doc):
         title = f"Customizations: {doctype}"
     else:
